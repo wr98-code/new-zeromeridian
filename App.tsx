@@ -26,24 +26,24 @@ import {
 
 // ─── Lazy Pages ───────────────────────────────────────────────────────────────
 
-const Portal        = lazy(() => import('./pages/Portal'));
-const Dashboard     = lazy(() => import('./pages/Dashboard'));
-const Markets       = lazy(() => import('./pages/Markets'));
-const OrderBook     = lazy(() => import('./pages/OrderBook'));
-const Derivatives   = lazy(() => import('./pages/Derivatives'));
-const Alerts        = lazy(() => import('./pages/Alerts'));
-const Watchlist     = lazy(() => import('./pages/Watchlist'));
-const Converter     = lazy(() => import('./pages/Converter'));
-const Defi          = lazy(() => import('./pages/Defi'));
+const Portal        = lazy(() => import('./src/pages/Portal'));
+const Dashboard     = lazy(() => import('./src/pages/Dashboard'));
+const Markets       = lazy(() => import('./src/pages/Markets'));
+const OrderBook     = lazy(() => import('./src/pages/OrderBook'));
+const Derivatives   = lazy(() => import('./src/pages/Derivatives'));
+const Alerts        = lazy(() => import('./src/pages/Alerts'));
+const Watchlist     = lazy(() => import('./src/pages/Watchlist'));
+const Converter     = lazy(() => import('./src/pages/Converter'));
+const Defi          = lazy(() => import('./src/pages/Defi'));
 const PageStub      = lazy(() => import('./src/components/shared/PageStub'));
-const OnChain       = lazy(() => import('./pages/OnChain'));
-const Intelligence  = lazy(() => import('./pages/Intelligence'));
-const Charts        = lazy(() => import('./pages/Charts'));
-const Fundamentals  = lazy(() => import('./pages/Fundamentals'));
-const Portfolio     = lazy(() => import('./pages/Portfolio'));
-const Networks      = lazy(() => import('./pages/Networks'));
-const Tokens        = lazy(() => import('./pages/Tokens'));
-const NotFound      = lazy(() => import('./pages/NotFound'));
+const OnChain       = lazy(() => import('./src/pages/OnChain'));
+const Intelligence  = lazy(() => import('./src/pages/Intelligence'));
+const Charts        = lazy(() => import('./src/pages/Charts'));
+const Fundamentals  = lazy(() => import('./src/pages/Fundamentals'));
+const Portfolio     = lazy(() => import('./src/pages/Portfolio'));
+const Networks      = lazy(() => import('./src/pages/Networks'));
+const Tokens        = lazy(() => import('./src/pages/Tokens'));
+const NotFound      = lazy(() => import('./src/pages/NotFound'));
 import AppShell     from './src/components/layout/AppShell';
 
 // ─── QueryClient ──────────────────────────────────────────────────────────────
