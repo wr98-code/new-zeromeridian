@@ -1,363 +1,226 @@
 /**
- * SmartMoney.tsx — ZERØ MERIDIAN 2026 push29
- * Full Smart Money: Whale Wallet Profiling, On-chain P&L,
- * Copy Signals, DEX Accumulation Zones, Exchange Flow Analysis.
- * - React.memo + displayName ✓  - rgba() only ✓
- * - Zero template literals in JSX ✓  - Zero recharts ✓
- * - useCallback + useMemo ✓  - mountedRef ✓
- * - aria-label + role ✓  - will-change: transform ✓
- * - Object.freeze() all static data ✓  - useBreakpoint ✓
+ * SmartMoney.tsx — ZERØ MERIDIAN 2026 push83
+ * push83: REAL DATA — Etherscan API free tier.
+ * Large ETH/ERC20 whale txs, gas tracker, live ETH price.
+ * - React.memo + displayName ✓
+ * - rgba() only ✓  Zero className ✓  Zero template literals in JSX ✓
+ * - useCallback + useMemo ✓
  */
 
-import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWhaleTracker, type WhaleTx } from '@/hooks/useWhaleTracker';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { formatCompact } from '@/lib/formatters';
-import { Wallet, TrendingUp, Activity, BarChart3, DollarSign, Radio, Filter } from 'lucide-react';
 
-type WalletTier = 'SHARK' | 'WHALE' | 'INSTITUTION' | 'FUND';
-type SignalStrength = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
-type AccumType = 'ACCUMULATION' | 'DISTRIBUTION';
-
-interface SmartWallet {
-  address: string; label: string; tier: WalletTier;
-  portfolioUsd: number; pnl30d: number; pnlPct30d: number;
-  winRate: number; trades30d: number; topHoldings: string[];
-  signal: SignalStrength; lastActive: string; alpha: number;
+function fmtUsd(n: number): string {
+  if (n >= 1_000_000_000) return '$' + (n / 1_000_000_000).toFixed(2) + 'B';
+  if (n >= 1_000_000)     return '$' + (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)         return '$' + (n / 1_000).toFixed(1) + 'K';
+  return '$' + n.toFixed(2);
 }
-interface FlowEntry { exchange: string; netflow24h: number; inflow: number; outflow: number; asset: string; color: string; }
-interface AccumZone { symbol: string; priceRange: string; strength: number; walletCount: number; totalUsd: number; type: AccumType; }
+function fmtEth(n: number): string {
+  return n >= 1000
+    ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' ETH'
+    : n.toFixed(2) + ' ETH';
+}
+function timeAgo(ts: number): string {
+  const d = Math.floor((Date.now() - ts) / 1000);
+  if (d < 60)    return d + 's ago';
+  if (d < 3600)  return Math.floor(d / 60) + 'm ago';
+  if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+  return Math.floor(d / 86400) + 'd ago';
+}
+function shortAddr(addr: string): string {
+  return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
 
-const TIER_CONFIG = Object.freeze({
-  SHARK:       { color: 'rgba(96,165,250,1)',  bg: 'rgba(96,165,250,0.08)',  label: 'Shark',       min: '$1M' },
-  WHALE:       { color: 'rgba(52,211,153,1)',  bg: 'rgba(52,211,153,0.08)', label: 'Whale',       min: '$10M' },
-  INSTITUTION: { color: 'rgba(167,139,250,1)', bg: 'rgba(167,139,250,0.08)', label: 'Institution', min: '$100M' },
-  FUND:        { color: 'rgba(251,191,36,1)',  bg: 'rgba(251,191,36,0.08)', label: 'Fund',        min: '$500M' },
-} as const);
-
-const SIGNAL_CONFIG = Object.freeze({
-  STRONG_BUY:  { color: 'rgba(52,211,153,1)',   bg: 'rgba(52,211,153,0.10)',  label: '▲▲ STRONG BUY',  arrow: '↑↑' },
-  BUY:         { color: 'rgba(52,211,153,0.7)', bg: 'rgba(52,211,153,0.06)', label: '▲ BUY',           arrow: '↑' },
-  NEUTRAL:     { color: 'rgba(148,163,184,0.6)', bg: 'rgba(148,163,184,0.06)', label: '— NEUTRAL',      arrow: '→' },
-  SELL:        { color: 'rgba(251,113,133,0.7)', bg: 'rgba(251,113,133,0.06)', label: '▼ SELL',          arrow: '↓' },
-  STRONG_SELL: { color: 'rgba(251,113,133,1)',  bg: 'rgba(251,113,133,0.10)', label: '▼▼ STRONG SELL', arrow: '↓↓' },
-} as const);
-
-const WALLETS: readonly SmartWallet[] = Object.freeze([
-  { address: '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE', label: 'Binance Hot Wallet α',  tier: 'INSTITUTION', portfolioUsd: 4_200_000_000, pnl30d: 128_000_000,  pnlPct30d: 3.1,  winRate: 0.71, trades30d: 892,  topHoldings: ['BTC','ETH','BNB'],    signal: 'STRONG_BUY',  lastActive: '2m ago',  alpha: 92 },
-  { address: '0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489', label: 'Jump Trading Alpha',   tier: 'INSTITUTION', portfolioUsd: 2_100_000_000, pnl30d: 312_000_000,  pnlPct30d: 17.4, winRate: 0.83, trades30d: 1203, topHoldings: ['BTC','ETH','SOL'],    signal: 'STRONG_BUY',  lastActive: '4m ago',  alpha: 97 },
-  { address: '0x503828976D22510aad0201ac7EC88293211D23Da', label: 'DRW Cumberland',        tier: 'FUND',        portfolioUsd: 3_600_000_000, pnl30d: 87_000_000,   pnlPct30d: 2.5,  winRate: 0.74, trades30d: 654,  topHoldings: ['BTC','ETH','LINK'],   signal: 'BUY',         lastActive: '1m ago',  alpha: 88 },
-  { address: '0x73BCEb1Cd57C711feaC4224D062b0F6ff338501e', label: 'Wintermute Arb Bot',   tier: 'INSTITUTION', portfolioUsd: 780_000_000,   pnl30d: 44_000_000,   pnlPct30d: 6.0,  winRate: 0.79, trades30d: 4821, topHoldings: ['ETH','USDC','UNI'],   signal: 'BUY',         lastActive: '< 1m',    alpha: 85 },
-  { address: '0x8484Ef722627bf18ca5Ae6BcF031c23E6e922B30', label: 'Unknown Whale #7',     tier: 'WHALE',       portfolioUsd: 94_000_000,    pnl30d: 19_000_000,   pnlPct30d: 25.3, winRate: 0.88, trades30d: 47,   topHoldings: ['BTC','AVAX','MATIC'],  signal: 'STRONG_BUY',  lastActive: '2h ago',  alpha: 94 },
-  { address: '0x742d35Cc6634C0532925a3b8D4C9E1a18e6B6E2D', label: 'Paradigm Capital',    tier: 'FUND',        portfolioUsd: 1_200_000_000, pnl30d: 156_000_000,  pnlPct30d: 14.9, winRate: 0.76, trades30d: 182,  topHoldings: ['ETH','OP','ARB'],      signal: 'STRONG_BUY',  lastActive: '6h ago',  alpha: 91 },
-  { address: '0x1a7BD9EDC3378c3C12aBa68bb8A91692b29B4b4f', label: 'DegenSharks #3',      tier: 'SHARK',       portfolioUsd: 8_400_000,     pnl30d: 3_200_000,    pnlPct30d: 61.5, winRate: 0.92, trades30d: 312,  topHoldings: ['DOGE','PEPE','SHIB'],  signal: 'BUY',         lastActive: '8m ago',  alpha: 78 },
-  { address: '0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8', label: 'Legacy Alpha Vault',  tier: 'FUND',        portfolioUsd: 890_000_000,   pnl30d: -21_000_000,  pnlPct30d: -2.3, winRate: 0.58, trades30d: 231,  topHoldings: ['SOL','AVAX','DOT'],    signal: 'NEUTRAL',     lastActive: '18m ago', alpha: 61 },
-] as const);
-
-const EXCHANGE_FLOWS: readonly FlowEntry[] = Object.freeze([
-  { exchange: 'Binance',  netflow24h: -2_400_000_000, inflow: 8_100_000_000, outflow: 10_500_000_000, asset: 'BTC', color: 'rgba(251,191,36,1)' },
-  { exchange: 'Coinbase', netflow24h: -890_000_000,   inflow: 2_100_000_000, outflow: 2_990_000_000,  asset: 'BTC', color: 'rgba(96,165,250,1)' },
-  { exchange: 'Kraken',   netflow24h: 340_000_000,    inflow: 1_200_000_000, outflow: 860_000_000,    asset: 'BTC', color: 'rgba(52,211,153,1)' },
-  { exchange: 'OKX',      netflow24h: -1_100_000_000, inflow: 3_400_000_000, outflow: 4_500_000_000,  asset: 'BTC', color: 'rgba(167,139,250,1)' },
-  { exchange: 'Bybit',    netflow24h: 210_000_000,    inflow: 890_000_000,   outflow: 680_000_000,    asset: 'ETH', color: 'rgba(251,146,60,1)' },
-] as const);
-
-const ACCUM_ZONES: readonly AccumZone[] = Object.freeze([
-  { symbol: 'BTC',  priceRange: '$91,200 – $94,800', strength: 87, walletCount: 2341, totalUsd: 4_200_000_000, type: 'ACCUMULATION' },
-  { symbol: 'ETH',  priceRange: '$3,100 – $3,350',   strength: 73, walletCount: 891,  totalUsd: 890_000_000,   type: 'ACCUMULATION' },
-  { symbol: 'SOL',  priceRange: '$178 – $194',        strength: 61, walletCount: 432,  totalUsd: 340_000_000,   type: 'ACCUMULATION' },
-  { symbol: 'BNB',  priceRange: '$620 – $650',        strength: 44, walletCount: 218,  totalUsd: 180_000_000,   type: 'DISTRIBUTION' },
-  { symbol: 'AVAX', priceRange: '$34 – $38',          strength: 55, walletCount: 176,  totalUsd: 92_000_000,    type: 'ACCUMULATION' },
-  { symbol: 'LINK', priceRange: '$17.2 – $18.8',      strength: 68, walletCount: 294,  totalUsd: 120_000_000,   type: 'ACCUMULATION' },
-] as const);
-
-const TABS = Object.freeze(['Wallets', 'Signals', 'Exchange Flow', 'Accum Zones'] as const);
-type Tab = typeof TABS[number];
-
-// ─── Alpha Bar ────────────────────────────────────────────────────────────────
-const AlphaBar = memo(({ score }: { score: number }) => {
-  const color = score >= 90 ? 'rgba(52,211,153,1)' : score >= 75 ? 'rgba(96,165,250,1)' : score >= 60 ? 'rgba(251,191,36,1)' : 'rgba(251,113,133,1)';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ flex: 1, height: 4, borderRadius: 50, background: 'rgba(148,163,184,0.1)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: score + '%', borderRadius: 50, background: color, transition: 'width 0.6s ease', willChange: 'width' }} />
-      </div>
-      <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color, minWidth: 24 }}>{score}</span>
-    </div>
-  );
-});
-AlphaBar.displayName = 'AlphaBar';
-
-// ─── Wallet Row ───────────────────────────────────────────────────────────────
-const WalletRow = memo(({ wallet: w, onClick, active, isMobile }: { wallet: SmartWallet; onClick: (a: string) => void; active: boolean; isMobile: boolean }) => {
-  const tierCfg = TIER_CONFIG[w.tier];
-  const sigCfg  = SIGNAL_CONFIG[w.signal];
-  const isProfit = w.pnl30d >= 0;
-  const handleClick = useCallback(() => onClick(w.address), [w.address, onClick]);
-  return (
-    <div onClick={handleClick} role="row" aria-label={w.label + ' wallet row'} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 60px' : '1fr 80px 90px 70px 60px 80px', gap: 12, alignItems: 'center', padding: '12px 16px', cursor: 'pointer', background: active ? 'rgba(96,165,250,0.04)' : 'transparent', borderBottom: '1px solid rgba(148,163,184,0.06)', transition: 'background 0.15s', willChange: 'transform' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-          <span style={{ fontFamily: 'monospace', fontSize: 9, padding: '1px 6px', borderRadius: 3, background: tierCfg.bg, color: tierCfg.color, fontWeight: 700 }}>{tierCfg.label}</span>
-          <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--zm-text-primary)' }}>{w.label}</span>
-        </div>
-        <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>{w.address.slice(0, 10) + '…' + w.address.slice(-6)}</span>
-      </div>
-      {!isMobile && (
-        <div>
-          <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: 'var(--zm-text-primary)' }}>{formatCompact(w.portfolioUsd)}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>portfolio</div>
-        </div>
-      )}
-      <div>
-        <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: isProfit ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)' }}>{isProfit ? '+' : ''}{formatCompact(w.pnl30d)}</div>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: isProfit ? 'rgba(52,211,153,0.7)' : 'rgba(251,113,133,0.7)' }}>{isProfit ? '+' : ''}{w.pnlPct30d.toFixed(1)}% 30d</div>
-      </div>
-      {!isMobile && (
-        <div>
-          <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: w.winRate >= 0.8 ? 'rgba(52,211,153,1)' : w.winRate >= 0.6 ? 'rgba(251,191,36,1)' : 'rgba(251,113,133,1)' }}>{(w.winRate * 100).toFixed(0)}%</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>win rate</div>
-        </div>
-      )}
-      <div style={{ minWidth: 60 }}>
-        <AlphaBar score={w.alpha} />
-        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'var(--zm-text-faint)', marginTop: 2 }}>alpha</div>
-      </div>
-      <span style={{ fontFamily: 'monospace', fontSize: 9, padding: '3px 7px', borderRadius: 4, background: sigCfg.bg, color: sigCfg.color, fontWeight: 700, textAlign: 'center', border: '1px solid ' + sigCfg.color + '30' }}>{sigCfg.arrow}</span>
-    </div>
-  );
-});
-WalletRow.displayName = 'WalletRow';
-
-// ─── Signal Card ──────────────────────────────────────────────────────────────
-const SignalCard = memo(({ wallet: w, isMobile }: { wallet: SmartWallet; isMobile: boolean }) => {
-  const sigCfg  = SIGNAL_CONFIG[w.signal];
-  const tierCfg = TIER_CONFIG[w.tier];
-  const isProfit = w.pnl30d >= 0;
-  return (
-    <div style={{ padding: 16, borderRadius: 12, background: 'var(--zm-glass-bg)', border: '1px solid ' + sigCfg.color + '25', willChange: 'transform' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--zm-text-primary)', marginBottom: 2 }}>{w.label}</div>
-          <span style={{ fontFamily: 'monospace', fontSize: 9, padding: '1px 6px', borderRadius: 3, background: tierCfg.bg, color: tierCfg.color }}>{tierCfg.label}</span>
-        </div>
-        <span style={{ fontFamily: 'monospace', fontSize: 11, padding: '4px 10px', borderRadius: 6, background: sigCfg.bg, color: sigCfg.color, fontWeight: 700, border: '1px solid ' + sigCfg.color + '35' }}>{sigCfg.label}</span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
-        {[
-          { label: '30d PnL', value: (isProfit ? '+' : '') + formatCompact(w.pnl30d), color: isProfit ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)' },
-          { label: 'Win Rate', value: (w.winRate * 100).toFixed(0) + '%', color: w.winRate >= 0.8 ? 'rgba(52,211,153,1)' : 'rgba(251,191,36,1)' },
-          { label: 'Trades/30d', value: String(w.trades30d), color: 'rgba(96,165,250,1)' },
-          { label: 'Alpha Score', value: w.alpha + '/100', color: w.alpha >= 90 ? 'rgba(52,211,153,1)' : 'rgba(251,191,36,1)' },
-        ].map(m => (
-          <div key={m.label} style={{ padding: 8, borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.08)' }}>
-            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'var(--zm-text-faint)', textTransform: 'uppercase', marginBottom: 3 }}>{m.label}</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: m.color }}>{m.value}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Top Holdings</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {w.topHoldings.map(h => <span key={h} style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 8px', borderRadius: 4, background: sigCfg.bg, color: sigCfg.color, border: '1px solid ' + sigCfg.color + '25' }}>{h}</span>)}
-      </div>
-    </div>
-  );
-});
-SignalCard.displayName = 'SignalCard';
-
-// ─── Exchange Flow ────────────────────────────────────────────────────────────
-const ExchangeFlowTab = memo(({ isMobile }: { isMobile: boolean }) => {
-  const totalOut = useMemo(() => EXCHANGE_FLOWS.filter(f => f.netflow24h < 0).reduce((s, f) => s + Math.abs(f.netflow24h), 0), []);
-  const totalIn  = useMemo(() => EXCHANGE_FLOWS.filter(f => f.netflow24h > 0).reduce((s, f) => s + f.netflow24h, 0), []);
-  const maxAbs   = useMemo(() => Math.max(...EXCHANGE_FLOWS.map(f => Math.abs(f.netflow24h))), []);
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div style={{ padding: 14, borderRadius: 10, background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(52,211,153,0.7)', textTransform: 'uppercase', marginBottom: 4 }}>Net Outflow (Bullish)</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: 'rgba(52,211,153,1)' }}>{formatCompact(totalOut)}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>Leaving exchanges — HODLing</div>
-        </div>
-        <div style={{ padding: 14, borderRadius: 10, background: 'rgba(251,113,133,0.06)', border: '1px solid rgba(251,113,133,0.2)' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(251,113,133,0.7)', textTransform: 'uppercase', marginBottom: 4 }}>Net Inflow (Bearish)</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: 'rgba(251,113,133,1)' }}>{formatCompact(totalIn)}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>Entering exchanges — Selling</div>
-        </div>
-      </div>
-      {EXCHANGE_FLOWS.map(f => {
-        const isOut = f.netflow24h < 0;
-        const netColor = isOut ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)';
-        const barPct = (Math.abs(f.netflow24h) / maxAbs) * 45;
-        return (
-          <div key={f.exchange} style={{ display: 'grid', gridTemplateColumns: isMobile ? '80px 1fr 80px' : '120px 1fr 120px 80px', gap: 12, alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(148,163,184,0.06)', background: 'var(--zm-glass-bg)', borderRadius: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: f.color, flexShrink: 0 }} />
-              <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--zm-text-primary)' }}>{f.exchange}</span>
-            </div>
-            <div style={{ position: 'relative', height: 10, background: 'rgba(148,163,184,0.08)', borderRadius: 5, overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, height: '100%', width: barPct + '%', background: netColor + '60', borderRadius: 5, left: isOut ? (50 - barPct / 2) + '%' : '50%', willChange: 'width' }} />
-            </div>
-            {!isMobile && (
-              <div>
-                <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(52,211,153,0.8)' }}>in {formatCompact(f.inflow)}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(251,113,133,0.8)' }}>out {formatCompact(f.outflow)}</div>
-              </div>
-            )}
-            <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: netColor, textAlign: 'right' }}>{isOut ? '-' : '+'}{formatCompact(Math.abs(f.netflow24h))}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-});
-ExchangeFlowTab.displayName = 'ExchangeFlowTab';
-
-// ─── Accum Zones ──────────────────────────────────────────────────────────────
-const AccumZonesTab = memo(({ isMobile }: { isMobile: boolean }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
-    <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--zm-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>On-Chain Wallet Cluster Zones — via DEX position analysis</div>
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
-      {ACCUM_ZONES.map(z => {
-        const isAccum = z.type === 'ACCUMULATION';
-        const color  = isAccum ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)';
-        const bg     = isAccum ? 'rgba(52,211,153,0.06)' : 'rgba(251,113,133,0.06)';
-        const border = isAccum ? 'rgba(52,211,153,0.2)' : 'rgba(251,113,133,0.2)';
-        return (
-          <div key={z.symbol} style={{ padding: 14, borderRadius: 10, background: bg, border: '1px solid ' + border, willChange: 'transform' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <div>
-                <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: 'var(--zm-text-primary)' }}>{z.symbol}</span>
-                <div style={{ fontFamily: 'monospace', fontSize: 10, color, marginTop: 2 }}>{z.priceRange}</div>
-              </div>
-              <span style={{ fontFamily: 'monospace', fontSize: 9, padding: '2px 8px', borderRadius: 4, background: color + '15', color, border: '1px solid ' + color + '30', fontWeight: 700 }}>{isAccum ? '↑ ACCUM' : '↓ DISTRIB'}</span>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)' }}>Zone Strength</span>
-                <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color }}>{z.strength}%</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 50, background: 'rgba(148,163,184,0.1)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: z.strength + '%', borderRadius: 50, background: color, transition: 'width 0.6s ease', willChange: 'width' }} />
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'var(--zm-text-faint)', textTransform: 'uppercase' }}>Wallets</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--zm-text-primary)' }}>{z.walletCount.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'var(--zm-text-faint)', textTransform: 'uppercase' }}>Total USD</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color }}>{formatCompact(z.totalUsd)}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+const GasCard = React.memo(({ label, gwei, color }: { label: string; gwei: number; color: string }) => (
+  <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '20px', fontWeight: 700, color }}>{gwei}</span>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Gwei</span>
     </div>
   </div>
 ));
-AccumZonesTab.displayName = 'AccumZonesTab';
+GasCard.displayName = 'GasCard';
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-const SmartMoney = memo(() => {
-  const { isMobile, isTablet } = useBreakpoint();
-  const mountedRef = useRef(true);
-  const [activeTab, setActiveTab]      = useState<Tab>('Wallets');
-  const [selectedAddr, setSelectedAddr] = useState(WALLETS[0].address);
-  const [filterTier, setFilterTier]    = useState<WalletTier | 'ALL'>('ALL');
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  const handleTab    = useCallback((t: Tab) => setActiveTab(t), []);
-  const handleSelect = useCallback((addr: string) => { if (!mountedRef.current) return; setSelectedAddr(addr); }, []);
-  const handleFilter = useCallback((tier: WalletTier | 'ALL') => setFilterTier(tier), []);
-
-  const filteredWallets = useMemo(() => filterTier === 'ALL' ? WALLETS : WALLETS.filter(w => w.tier === filterTier), [filterTier]);
-  const selectedWallet  = useMemo(() => WALLETS.find(w => w.address === selectedAddr) ?? WALLETS[0], [selectedAddr]);
-  const totalAlpha      = useMemo(() => Math.round(WALLETS.reduce((s, w) => s + w.alpha, 0) / WALLETS.length), []);
-  const bullishCount    = useMemo(() => WALLETS.filter(w => w.signal === 'STRONG_BUY' || w.signal === 'BUY').length, []);
-  const totalPortfolio  = useMemo(() => WALLETS.reduce((s, w) => s + w.portfolioUsd, 0), []);
-  const totalPnl        = useMemo(() => WALLETS.reduce((s, w) => s + w.pnl30d, 0), []);
-  const gridCols        = useMemo(() => isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', [isMobile, isTablet]);
-
+const TypeBadge = React.memo(({ type, symbol }: { type: 'ETH' | 'ERC20'; symbol?: string }) => {
+  const isEth = type === 'ETH';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 16, minHeight: '100vh', background: 'var(--zm-bg-deep)' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
-            <Wallet size={18} style={{ color: 'rgba(52,211,153,1)' }} />
-          </div>
-          <div>
-            <h1 style={{ fontFamily: 'monospace', fontSize: isMobile ? 18 : 22, fontWeight: 700, margin: 0, background: 'linear-gradient(90deg,rgba(52,211,153,1) 0%,rgba(96,165,250,1) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Smart Money</h1>
-            <p style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--zm-text-faint)', margin: 0 }}>Whale wallets · on-chain P&L · copy signals · exchange flow</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
-          <Radio size={10} style={{ color: 'rgba(52,211,153,1)' }} />
-          <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(52,211,153,1)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Live · 8 wallets tracked</span>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 12 }}>
-        {([
-          { label: 'Total AUM', value: formatCompact(totalPortfolio), color: 'rgba(96,165,250,1)', Icon: DollarSign },
-          { label: '30d PnL', value: (totalPnl >= 0 ? '+' : '') + formatCompact(totalPnl), color: totalPnl >= 0 ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)', Icon: TrendingUp },
-          { label: 'Bullish Signals', value: bullishCount + '/' + WALLETS.length, color: 'rgba(52,211,153,1)', Icon: Activity },
-          { label: 'Avg Alpha Score', value: String(totalAlpha) + '/100', color: 'rgba(167,139,250,1)', Icon: BarChart3 },
-        ] as const).map(s => {
-          const Icon = s.Icon;
-          return (
-            <div key={s.label} style={{ padding: 14, borderRadius: 10, background: 'var(--zm-glass-bg)', border: '1px solid var(--zm-glass-border)', willChange: 'transform' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</span>
-                <Icon size={12} style={{ color: s.color }} />
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <SignalCard wallet={selectedWallet} isMobile={isMobile} />
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} role="tablist" aria-label="SmartMoney tabs">
-        {TABS.map(t => (
-          <button key={t} type="button" role="tab" aria-selected={activeTab === t} aria-label={'Switch to ' + t} onClick={() => handleTab(t)} style={{ padding: '6px 14px', borderRadius: 8, fontFamily: 'monospace', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all 0.15s', background: activeTab === t ? 'rgba(52,211,153,0.12)' : 'transparent', color: activeTab === t ? 'rgba(52,211,153,1)' : 'var(--zm-text-faint)', border: '1px solid ' + (activeTab === t ? 'rgba(52,211,153,0.3)' : 'transparent'), willChange: 'transform' }}>{t}</button>
-        ))}
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} style={{ borderRadius: 12, background: 'var(--zm-glass-bg)', border: '1px solid var(--zm-glass-border)', overflow: 'hidden', willChange: 'transform, opacity' }}>
-          {activeTab === 'Wallets' && (
-            <>
-              <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid rgba(148,163,184,0.08)', flexWrap: 'wrap' }}>
-                <Filter size={11} style={{ color: 'var(--zm-text-faint)', marginTop: 4, flexShrink: 0 }} />
-                {(['ALL', 'SHARK', 'WHALE', 'INSTITUTION', 'FUND'] as const).map(t => (
-                  <button key={t} type="button" aria-pressed={filterTier === t} aria-label={'Filter ' + t} onClick={() => handleFilter(t)} style={{ padding: '3px 10px', borderRadius: 4, fontFamily: 'monospace', fontSize: 9, cursor: 'pointer', transition: 'all 0.15s', background: filterTier === t ? 'rgba(96,165,250,0.15)' : 'transparent', color: filterTier === t ? 'rgba(96,165,250,1)' : 'var(--zm-text-faint)', border: '1px solid ' + (filterTier === t ? 'rgba(96,165,250,0.3)' : 'transparent') }}>{t === 'ALL' ? 'ALL' : TIER_CONFIG[t].label}</button>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 60px' : '1fr 80px 90px 70px 60px 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid rgba(148,163,184,0.1)', background: 'rgba(255,255,255,0.02)' }}>
-                {(isMobile ? ['Wallet', '30d PnL', 'Sig'] : ['Wallet / Tier', 'Portfolio', '30d PnL', 'Win Rate', 'Alpha', 'Signal']).map(h => (
-                  <span key={h} style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--zm-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
-                ))}
-              </div>
-              {filteredWallets.map(w => <WalletRow key={w.address} wallet={w} onClick={handleSelect} active={selectedAddr === w.address} isMobile={isMobile} />)}
-            </>
-          )}
-          {activeTab === 'Signals' && (
-            <div style={{ padding: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
-              {[...WALLETS].sort((a, b) => b.alpha - a.alpha).map(w => <SignalCard key={w.address} wallet={w} isMobile={isMobile} />)}
-            </div>
-          )}
-          {activeTab === 'Exchange Flow' && <div style={{ padding: 16 }}><ExchangeFlowTab isMobile={isMobile} /></div>}
-          {activeTab === 'Accum Zones' && <AccumZonesTab isMobile={isMobile} />}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, letterSpacing: '0.06em', background: isEth ? 'rgba(98,126,234,0.15)' : 'rgba(0,200,100,0.12)', border: isEth ? '1px solid rgba(98,126,234,0.3)' : '1px solid rgba(0,200,100,0.25)', color: isEth ? 'rgba(140,160,255,1)' : 'rgba(60,220,130,1)', flexShrink: 0 }}>
+      {isEth ? 'ETH' : (symbol ?? 'ERC20')}
+    </span>
   );
 });
+TypeBadge.displayName = 'TypeBadge';
+
+const AddrChip = React.memo(({ addr, label }: { addr: string; label: string | null }) => (
+  <a
+    href={'https://etherscan.io/address/' + addr}
+    target="_blank" rel="noopener noreferrer" title={addr}
+    style={{ fontFamily: label ? "'Space Grotesk', sans-serif" : "'JetBrains Mono', monospace", fontSize: label ? '12px' : '11px', color: label ? 'rgba(0,200,255,0.85)' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px', textDecoration: 'none', display: 'block' }}
+  >
+    {label ?? shortAddr(addr)}
+  </a>
+));
+AddrChip.displayName = 'AddrChip';
+
+const SkeletonRow = React.memo(({ i }: { i: number }) => (
+  <motion.div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)' }} animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.08 }}>
+    <div style={{ width: '60px', height: '22px', borderRadius: '6px', background: 'rgba(255,255,255,0.07)' }} />
+    <div style={{ flex: 1, height: '13px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)' }} />
+    <div style={{ width: '80px', height: '13px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)' }} />
+    <div style={{ width: '60px', height: '13px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)' }} />
+  </motion.div>
+));
+SkeletonRow.displayName = 'SkeletonRow';
+
+const TxRow = React.memo(({ tx, isMobile }: { tx: WhaleTx; isMobile: boolean }) => {
+  const cols = isMobile ? '60px 1fr 85px' : '70px 1fr 1fr 1fr 80px 80px';
+  const usdColor = tx.valueUsd >= 10_000_000 ? 'rgba(251,191,36,1)' : tx.valueUsd >= 1_000_000 ? 'rgba(251,113,133,1)' : 'rgba(255,255,255,0.75)';
+  return (
+    <motion.div
+      style={{ display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: isMobile ? '8px' : '12px', padding: '11px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+      initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+      whileHover={{ background: 'rgba(255,255,255,0.025)' }}
+    >
+      <TypeBadge type={tx.type} symbol={tx.tokenSymbol} />
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '3px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <AddrChip addr={tx.from} label={tx.fromLabel} />
+            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px' }}>→</span>
+            <AddrChip addr={tx.to} label={tx.toLabel} />
+          </div>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>{timeAgo(tx.timestamp)}</span>
+        </div>
+      ) : (
+        <>
+          <AddrChip addr={tx.from} label={tx.fromLabel} />
+          <AddrChip addr={tx.to} label={tx.toLabel} />
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '2px' }}>
+            {tx.type === 'ETH' && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'rgba(140,160,255,0.8)' }}>{fmtEth(tx.valueEth)}</span>}
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: 700, color: usdColor }}>{fmtUsd(tx.valueUsd)}</span>
+          </div>
+        </>
+      )}
+      {isMobile
+        ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: 700, color: usdColor, textAlign: 'right' as const }}>{fmtUsd(tx.valueUsd)}</span>
+        : <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>{timeAgo(tx.timestamp)}</span>
+      }
+      {!isMobile && (
+        <a href={'https://etherscan.io/tx/' + tx.hash} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(0,200,255,0.5)', textDecoration: 'none', textAlign: 'right' as const }}>
+          {tx.hash.slice(0, 8)}...
+        </a>
+      )}
+    </motion.div>
+  );
+});
+TxRow.displayName = 'TxRow';
+
+const SmartMoney: React.FC = () => {
+  const { txs, gas, ethPrice, loading, error, lastUpdated, refetch } = useWhaleTracker();
+  const { isMobile } = useBreakpoint();
+
+  const lastUpdatedStr = useMemo(() =>
+    lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+  , [lastUpdated]);
+
+  const thCols = isMobile ? '60px 1fr 85px' : '70px 1fr 1fr 1fr 80px 80px';
+
+  return (
+    <div style={{ padding: isMobile ? '16px 12px' : '24px', maxWidth: '1000px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap' as const, gap: '12px' }}>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '20px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', margin: 0 }}>
+          🐳 Smart Money
+        </h1>
+        <button onClick={refetch} style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', cursor: 'pointer' }}>
+          ↺ Refresh
+        </button>
+      </div>
+
+      {/* Stats chips */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' as const }}>
+        {ethPrice > 0 && (
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>ETH</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '15px', fontWeight: 700, color: 'rgba(140,160,255,1)' }}>${ethPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+          </div>
+        )}
+        <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>Txs</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '15px', fontWeight: 700, color: 'rgba(251,191,36,1)' }}>{txs.length}</span>
+        </div>
+        <div style={{ background: 'rgba(0,200,255,0.05)', border: '1px solid rgba(0,200,255,0.12)', borderRadius: '10px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: 'rgba(0,200,255,0.7)' }}>Etherscan API</span>
+        </div>
+      </div>
+
+      {/* Gas tracker */}
+      {gas && (
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' as const }}>
+          <GasCard label="Safe"    gwei={gas.safeGwei}    color="rgba(52,211,153,1)" />
+          <GasCard label="Normal"  gwei={gas.proposeGwei} color="rgba(251,191,36,1)" />
+          <GasCard label="Fast"    gwei={gas.fastGwei}    color="rgba(251,113,133,1)" />
+          <div style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Last Block</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '18px', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>#{gas.lastBlock.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {/* TX Table */}
+      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
+        {!loading && !error && (
+          <div style={{ display: 'grid', gridTemplateColumns: thCols, gap: isMobile ? '8px' : '12px', padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+            <span>Type</span>
+            <span>{isMobile ? 'Details' : 'From'}</span>
+            {!isMobile && <span>To</span>}
+            {!isMobile && <span>Value</span>}
+            {!isMobile && <span>Time</span>}
+            <span style={{ textAlign: 'right' }}>{isMobile ? 'USD' : 'Tx'}</span>
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div key="skel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {Array.from({ length: 10 }, (_, i) => <SkeletonRow key={i} i={i} />)}
+            </motion.div>
+          ) : error ? (
+            <motion.div key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ padding: '32px 16px', textAlign: 'center' as const, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', color: 'rgba(251,113,133,0.8)' }}>
+              <div>⚠ {error}</div>
+              <button onClick={refetch} style={{ marginTop: '12px', padding: '8px 20px', borderRadius: '8px', background: 'rgba(251,113,133,0.1)', border: '1px solid rgba(251,113,133,0.3)', color: 'rgba(251,113,133,0.9)', fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px', cursor: 'pointer' }}>Retry</button>
+            </motion.div>
+          ) : txs.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ padding: '40px 16px', textAlign: 'center' as const, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', color: 'rgba(255,255,255,0.3)' }}>
+              No large transactions found in recent blocks
+            </motion.div>
+          ) : (
+            <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {txs.map(tx => <TxRow key={tx.hash} tx={tx} isMobile={isMobile} />)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!loading && !error && (
+          <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.22)' }}>
+            <span>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(52,211,153,0.9)', boxShadow: '0 0 6px rgba(52,211,153,0.6)', display: 'inline-block', marginRight: '6px' }} />
+              Live · Etherscan API · refresh 30s
+            </span>
+            {lastUpdatedStr && <span>Updated {lastUpdatedStr}</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 SmartMoney.displayName = 'SmartMoney';
-export default SmartMoney;
+export default memo(SmartMoney);
