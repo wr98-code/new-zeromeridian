@@ -158,7 +158,7 @@ const PriceCell = memo(({ price, direction }: { price: number; direction?: strin
   return (
     <span
       ref={ref}
-            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 600, borderRadius: 4, padding: '0 4px', color: 'var(--zm-text-primary)', willChange: 'transform' }}
+            style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, borderRadius: 4, padding: '0 4px', color: 'var(--zm-text-1)', willChange: 'transform' }}
     >
       {formatPrice(price)}
     </span>
@@ -171,8 +171,8 @@ PriceCell.displayName = 'PriceCell';
 const SortIcon = memo(({ colKey, sortKey, sortAsc }: { colKey: string; sortKey: string; sortAsc: boolean }) => {
   if (colKey !== sortKey) return <ArrowUpDown size={9} style={{ opacity: 0.3 }} />;
   return sortAsc
-    ? <ArrowUp size={9} style={{ color: 'var(--zm-accent)' }} />
-    : <ArrowDown size={9} style={{ color: 'var(--zm-accent)' }} />;
+    ? <ArrowUp size={9} style={{ color: 'var(--zm-blue)' }} />
+    : <ArrowDown size={9} style={{ color: 'var(--zm-blue)' }} />;
 });
 SortIcon.displayName = 'SortIcon';
 
@@ -214,7 +214,7 @@ const NoteCell = memo(({ id, note, editing, onEdit, onSave }: {
         onBlur={handleBlur}
         onKeyDown={handleKey}
         maxLength={80}
-        style={{ width: '100%', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontFamily: 'var(--font-mono-ui)', outline: 'none', boxSizing: 'border-box', background: 'var(--zm-accent-dim)', border: '1px solid rgba(34,211,238,0.3)', color: 'var(--zm-text-primary)', minWidth: 120 }}
+        style={{ width: '100%', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontFamily: 'var(--zm-font-data)', outline: 'none', boxSizing: 'border-box', background: 'var(--zm-blue-bg)', border: '1px solid rgba(96,165,250,0.3)', color: 'var(--zm-text-1)', minWidth: 120 }}
         placeholder="Add note..."
       />
     );
@@ -224,9 +224,9 @@ const NoteCell = memo(({ id, note, editing, onEdit, onSave }: {
     <button
       onClick={() => onEdit(id)}
       aria-label={note ? 'Edit note: ' + note : 'Add note'}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontFamily: 'var(--font-mono-ui)', transition: 'color 0.15s,background 0.15s', color: note ? 'rgba(138,138,158,0.70)' : 'rgba(138,138,158,0.25)', maxWidth: 160, willChange: 'transform' }}
-      onMouseEnter={e => { e.currentTarget.style.color = 'rgba(0,238,255,0.80)'; }}
-      onMouseLeave={e => { e.currentTarget.style.color = note ? 'rgba(138,138,158,0.70)' : 'rgba(138,138,158,0.25)'; }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontFamily: 'var(--zm-font-data)', transition: 'color 0.15s,background 0.15s', color: note ? 'rgba(148,163,184,0.7)' : 'rgba(148,163,184,0.25)', maxWidth: 160, willChange: 'transform' }}
+      onMouseEnter={e => { e.currentTarget.style.color = 'rgba(96,165,250,0.8)'; }}
+      onMouseLeave={e => { e.currentTarget.style.color = note ? 'rgba(148,163,184,0.7)' : 'rgba(148,163,184,0.25)'; }}
     >
       <StickyNote size={11} style={{ flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note || 'Add note...'}</span>
@@ -269,15 +269,15 @@ const AddCoinPanel = memo(({ assets, watchlistIds, onAdd, onClose }: AddCoinPane
       aria-modal="true" 
     >
       <div
-        style={{ display: 'flex', flexDirection: 'column', borderRadius: 16, overflow: 'hidden', width: 420, maxHeight: '70vh', background: 'var(--zm-bg-base)', border: '1px solid rgba(0,238,255,0.15)', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
+        style={{ display: 'flex', flexDirection: 'column', borderRadius: 16, overflow: 'hidden', width: 420, maxHeight: '70vh', background: 'var(--zm-bg)', border: '1px solid rgba(96,165,250,0.15)', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
       >
         {/* Header */}
         <div
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', flexShrink: 0, borderBottom: '1px solid var(--zm-accent-dim)' }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', flexShrink: 0, borderBottom: '1px solid var(--zm-blue-bg)' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Plus size={15} style={{ color: 'var(--zm-accent)' }} />
-            <span style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 14, fontWeight: 600, color: 'var(--zm-text-primary)' }}>
+            <Plus size={15} style={{ color: 'var(--zm-blue)' }} />
+            <span style={{ fontFamily: 'var(--zm-font-data)', fontSize: 14, fontWeight: 600, color: 'var(--zm-text-1)' }}>
               Add to Watchlist
             </span>
           </div>
@@ -285,25 +285,25 @@ const AddCoinPanel = memo(({ assets, watchlistIds, onAdd, onClose }: AddCoinPane
             onClick={onClose}
             aria-label="Close add coin panel"
             style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, transition: 'color 0.15s,background 0.15s', cursor: 'pointer', background: 'transparent', border: 'none', willChange: 'transform' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--zm-surface-3)'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
           >
-            <X size={14} style={{ color: 'var(--zm-text-secondary)' }} />
+            <X size={14} style={{ color: 'rgba(148,163,184,0.6)' }} />
           </button>
         </div>
 
         {/* Search */}
-        <div style={{ padding: '12px 16px', flexShrink: 0, borderBottom: '1px solid rgba(0,238,255,0.06)' }}>
+        <div style={{ padding: '12px 16px', flexShrink: 0, borderBottom: '1px solid rgba(96,165,250,0.06)' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--zm-text-faint)' }} />
+            <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--zm-text-3)' }} />
             <input
               ref={inputRef}
               value={q}
               onChange={e => setQ(e.target.value)}
               placeholder="Search coins..."
-              style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, fontSize: 12, fontFamily: 'var(--font-mono-ui)', outline: 'none', boxSizing: 'border-box', background: 'var(--zm-surface-2)', border: '1px solid rgba(0,238,255,0.15)', color: 'var(--zm-text-primary)' }}
-              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,238,255,0.35)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,238,255,0.15)'; }}
+              style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, fontSize: 12, fontFamily: 'var(--zm-font-data)', outline: 'none', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(96,165,250,0.15)', color: 'var(--zm-text-1)' }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(96,165,250,0.35)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(96,165,250,0.15)'; }}
             />
           </div>
         </div>
@@ -319,20 +319,20 @@ const AddCoinPanel = memo(({ assets, watchlistIds, onAdd, onClose }: AddCoinPane
                 onClick={() => { if (!inWatchlist) { onAdd(a.id); onClose(); } }}
                 disabled={inWatchlist}
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', textAlign: 'left', transition: 'color 0.15s,background 0.15s', cursor: inWatchlist ? 'not-allowed' : 'pointer', border: 'none', background: 'transparent', opacity: inWatchlist ? 0.4 : 1 }}
-                onMouseEnter={e => { if (!inWatchlist) e.currentTarget.style.background = 'rgba(0,238,255,0.06)'; }}
+                onMouseEnter={e => { if (!inWatchlist) e.currentTarget.style.background = 'rgba(96,165,250,0.06)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {a.image
-                  ? <img src={'/api/img?u=' + encodeURIComponent(a.image)} alt="" crossOrigin="anonymous" loading="lazy" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
-                  : <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: 'rgba(0,238,255,0.15)' }} />
+                  ? <img src={a.image} alt="" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} loading="lazy" />
+                  : <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: 'rgba(96,165,250,0.15)' }} />
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 12, fontWeight: 600, color: 'var(--zm-text-primary)' }}>{a.name}</div>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--zm-text-secondary)' }}>{a.symbol.toUpperCase()}</div>
+                  <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 12, fontWeight: 600, color: 'var(--zm-text-1)' }}>{a.name}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--zm-text-2)' }}>{a.symbol.toUpperCase()}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'var(--zm-text-primary)' }}>{formatPrice(a.price)}</div>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: isPos ? 'var(--zm-positive)' : 'var(--zm-negative)' }}>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--zm-text-1)' }}>{formatPrice(a.price)}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 600, color: isPos ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)' }}>
                     {formatChange(a.change24h)}
                   </div>
                 </div>
@@ -354,24 +354,24 @@ AddCoinPanel.displayName = 'AddCoinPanel';
 const EmptyState = memo(({ onAdd }: { onAdd: () => void }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 0', gap: 16 }}>
     <div
-            style={{ width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--zm-accent-dim)', border: '1px solid rgba(0,238,255,0.15)' }}
+            style={{ width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--zm-blue-bg)', border: '1px solid rgba(96,165,250,0.15)' }}
     >
-      <Star size={28} style={{ color: 'rgba(0,238,255,0.50)' }} />
+      <Star size={28} style={{ color: 'rgba(96,165,250,0.5)' }} />
     </div>
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 14, fontWeight: 600, marginBottom: 4, color: 'rgba(226,232,240,0.7)' }}>
+      <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 14, fontWeight: 600, marginBottom: 4, color: 'rgba(226,232,240,0.7)' }}>
         Watchlist kosong
       </div>
-      <div style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 12, color: 'var(--zm-text-secondary)' }}>
+      <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 12, color: 'var(--zm-text-2)' }}>
         Tambah coin yang mau kamu track
       </div>
     </div>
     <button
       onClick={onAdd}
       aria-label="Add coins to watchlist"
-      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 12, fontSize: 12, fontFamily: 'var(--font-mono-ui)', transition: 'all 0.15s', cursor: 'pointer', background: 'var(--zm-accent-bg)', border: '1px solid var(--zm-accent-border)', color: 'var(--zm-accent)', willChange: 'transform' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.18)'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'var(--zm-accent-bg)'; }}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 12, fontSize: 12, fontFamily: 'var(--zm-font-data)', transition: 'all 0.15s', cursor: 'pointer', background: 'var(--zm-blue-bg)', border: '1px solid var(--zm-blue-border)', color: 'var(--zm-blue)', willChange: 'transform' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(96,165,250,0.18)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--zm-blue-bg)'; }}
     >
       <Plus size={14} /> Add Coins
     </button>
@@ -383,7 +383,7 @@ EmptyState.displayName = 'EmptyState';
 
 const Watchlist = memo(() => {
   const { assets, loading, wsStatus } = useCrypto();
-  const { isMobile, isTablet } = useBreakpoint();
+  const { isMobile } = useBreakpoint();
   const mountedRef = useRef(true);
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const [showAdd, setShowAdd] = useState(false);
@@ -452,15 +452,15 @@ const Watchlist = memo(() => {
   const handleSearch = useCallback((q: string) => dispatch({ type: 'SET_SEARCH', q }), []);
 
   const wsColor = wsStatus === 'connected'
-    ? 'var(--zm-positive)'
+    ? 'rgba(52,211,153,1)'
     : wsStatus === 'reconnecting'
-    ? 'var(--zm-warning)'
-    : 'var(--zm-negative)';
+    ? 'rgba(251,191,36,1)'
+    : 'rgba(251,113,133,1)';
 
   if (loading && assets.length === 0) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <Loader2 size={32} style={{ color: 'var(--zm-accent)', animation: 'spin 1s linear infinite' }} />
+        <Loader2 size={32} style={{ color: 'var(--zm-blue)', animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
@@ -470,12 +470,12 @@ const Watchlist = memo(() => {
       {/* Header */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono-ui)', margin: 0, background: 'linear-gradient(90deg, var(--zm-accent) 0%, var(--zm-violet) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Watchlist</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--zm-font-data)', margin: 0, background: 'linear-gradient(90deg, var(--zm-blue) 0%, var(--zm-violet) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Watchlist</h1>
           <div
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px', borderRadius: 4, background: 'rgba(0,238,255,0.06)', border: '1px solid rgba(0,238,255,0.15)' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px', borderRadius: 4, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)' }}
           >
-            <Star size={11} style={{ color: 'rgba(0,238,255,0.80)' }} />
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono-ui)', color: 'rgba(34,211,238,0.85)' }}>
+            <Star size={11} style={{ color: 'rgba(96,165,250,0.8)' }} />
+            <span style={{ fontSize: 10, fontFamily: 'var(--zm-font-data)', color: 'rgba(96,165,250,0.85)' }}>
               {state.entries.length}/{MAX_WATCHLIST} tracked
             </span>
           </div>
@@ -485,7 +485,7 @@ const Watchlist = memo(() => {
             <span
                             style={{ width: 6, height: 6, borderRadius: '50%', background: wsColor, boxShadow: wsStatus === 'connected' ? '0 0 5px ' + wsColor : 'none' }}
             />
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono-ui)', color: 'rgba(52,211,153,0.85)' }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--zm-font-data)', color: 'rgba(52,211,153,0.85)' }}>
               {wsStatus === 'connected' ? 'LIVE' : wsStatus.toUpperCase()}
             </span>
           </div>
@@ -496,17 +496,17 @@ const Watchlist = memo(() => {
           {watchlistAssets.length > 0 && (
             <>
               <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--font-mono-ui)', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.15)', color: 'var(--zm-positive)' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--zm-font-data)', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.15)', color: 'rgba(52,211,153,1)' }}
               >
                 <TrendingUp size={11} /> {stats.gainers}
               </div>
               <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--font-mono-ui)', background: 'rgba(251,113,133,0.08)', border: '1px solid var(--zm-negative-bg)', color: 'var(--zm-negative)' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--zm-font-data)', background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.15)', color: 'rgba(251,113,133,1)' }}
               >
                 <TrendingDown size={11} /> {stats.losers}
               </div>
               <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--font-mono-ui)', background: 'var(--zm-divider)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--zm-text-secondary)' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'var(--zm-font-data)', background: 'var(--zm-border)', border: '1px solid rgba(148,163,184,0.12)', color: 'rgba(148,163,184,0.6)' }}
               >
                 <Minus size={11} /> {stats.neutral}
               </div>
@@ -519,9 +519,9 @@ const Watchlist = memo(() => {
             disabled={state.entries.length >= MAX_WATCHLIST}
             aria-label="Add coin to watchlist"
             aria-disabled={state.entries.length >= MAX_WATCHLIST}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 12, fontSize: 11, fontFamily: 'var(--font-mono-ui)', transition: 'all 0.15s', background: 'var(--zm-accent-bg)', border: '1px solid var(--zm-accent-border)', color: 'var(--zm-accent)', opacity: state.entries.length >= MAX_WATCHLIST ? 0.4 : 1, willChange: 'transform' }}
-            onMouseEnter={e => { if (state.entries.length < MAX_WATCHLIST) e.currentTarget.style.background = 'rgba(34,211,238,0.18)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--zm-accent-bg)'; }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 12, fontSize: 11, fontFamily: 'var(--zm-font-data)', transition: 'all 0.15s', background: 'var(--zm-blue-bg)', border: '1px solid var(--zm-blue-border)', color: 'var(--zm-blue)', opacity: state.entries.length >= MAX_WATCHLIST ? 0.4 : 1, willChange: 'transform' }}
+            onMouseEnter={e => { if (state.entries.length < MAX_WATCHLIST) e.currentTarget.style.background = 'rgba(96,165,250,0.18)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--zm-blue-bg)'; }}
           >
             <Plus size={13} /> Add Coin
           </button>
@@ -531,35 +531,34 @@ const Watchlist = memo(() => {
       {/* Search bar (only if has entries) */}
       {state.entries.length > 0 && (
         <div style={{ position: 'relative', maxWidth: 280 }}>
-          <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--zm-text-faint)' }} />
+          <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--zm-text-3)' }} />
           <input
             value={state.search}
             onChange={e => handleSearch(e.target.value)}
             placeholder="Filter watchlist..."
             aria-label="Filter watchlist coins"
-                        style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, fontSize: 12, fontFamily: 'var(--font-mono-ui)', outline: 'none', boxSizing: 'border-box', background: 'var(--zm-card-bg)', border: '1px solid var(--zm-card-border)', color: 'var(--zm-text-primary)' }}
-            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,238,255,0.35)'; }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'var(--zm-card-border)'; }}
+                        style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, fontSize: 12, fontFamily: 'var(--zm-font-data)', outline: 'none', boxSizing: 'border-box', background: 'var(--zm-surface)', border: '1px solid var(--zm-border)', color: 'var(--zm-text-1)' }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(96,165,250,0.35)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--zm-border)'; }}
           />
         </div>
       )}
 
       {/* Table or empty */}
       {state.entries.length === 0 ? (
-        <div style={{ background: 'var(--zm-card-bg)', border: '1px solid var(--zm-card-border)', borderRadius: '12px', position: 'relative' }}>
+        <div style={{ background: 'var(--zm-surface)', border: '1px solid var(--zm-border)', borderRadius: '12px', position: 'relative' }}>
           <EmptyState onAdd={() => setShowAdd(true)} />
         </div>
       ) : (
-        <div style={{ overflow: 'hidden', background: 'var(--zm-card-bg)', border: '1px solid var(--zm-card-border)', borderRadius: '12px', position: 'relative' }}>
+        <div style={{ overflow: 'hidden', background: 'var(--zm-surface)', border: '1px solid var(--zm-border)', borderRadius: '12px', position: 'relative' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }} role="grid" aria-label="Watchlist assets">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--zm-card-border)', background: 'var(--zm-surface-1)' }}>
-                  {SORT_COLS.map(col => {
-                    if (isMobile && ['added','change7d','marketCap','volume24h','sparkline','note'].includes(col.key)) return null;
-                    return (<th
+                <tr style={{ borderBottom: '1px solid var(--zm-border)', background: 'var(--zm-surface)' }}>
+                  {SORT_COLS.map(col => (
+                    <th
                       key={col.key}
-                      style={{ padding: 12, fontSize: 10, fontFamily: 'var(--font-mono-ui)', textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none', textAlign: col.align as 'left' | 'right', color: state.sortKey === col.key ? 'var(--zm-accent)' : 'var(--zm-text-faint)', cursor: col.sortable ? 'pointer' : 'default', paddingLeft: col.key === 'added' ? 16 : undefined }}
+                      style={{ padding: 12, fontSize: 10, fontFamily: 'var(--zm-font-data)', textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none', textAlign: col.align as 'left' | 'right', color: state.sortKey === col.key ? 'var(--zm-blue)' : 'var(--zm-text-3)', cursor: col.sortable ? 'pointer' : 'default', paddingLeft: col.key === 'added' ? 16 : undefined }}
                       onClick={col.sortable ? () => handleSort(col.key) : undefined}
                     >
                       <span
@@ -569,15 +568,14 @@ const Watchlist = memo(() => {
                         {col.sortable && <SortIcon colKey={col.key} sortKey={state.sortKey} sortAsc={state.sortAsc} />}
                       </span>
                     </th>
-                    );
-                  })}
-              </tr>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
                     <td colSpan={SORT_COLS.length} style={{ textAlign: 'center', paddingTop: 40, paddingBottom: 40 }}>
-                      <div style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 12, color: 'var(--zm-text-faint)' }}>No results</div>
+                      <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 12, color: 'var(--zm-text-3)' }}>No results</div>
                     </td>
                   </tr>
                 ) : sorted.map(({ entry, asset }) => {
@@ -585,23 +583,25 @@ const Watchlist = memo(() => {
                   return (
                     <tr
                       key={asset.id}
-                                            style={{ transition: 'background 0.15s', borderBottom: '1px solid var(--zm-card-border)', willChange: 'transform' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.03)'; }}
+                                            style={{ transition: 'background 0.15s', borderBottom: '1px solid var(--zm-border)', willChange: 'transform' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(96,165,250,0.03)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      {/* Added date — hidden mobile */}
-                      {!isMobile && <td style={{ padding: '10px 16px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--zm-text-faint)', width: 60 }}>{addedDate}</td>}
+                      {/* Added date */}
+                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 10, color: 'var(--zm-text-3)', width: 60 }}>
+                        {addedDate}
+                      </td>
 
                       {/* Name */}
                       <td style={{ padding: '10px 12px', minWidth: 180 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {asset.image
-                            ? <img src={'/api/img?u=' + encodeURIComponent(asset.image)} alt="" crossOrigin="anonymous" loading="lazy" style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0 }} />
-                            : <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'rgba(0,238,255,0.15)' }} />
+                            ? <img src={asset.image} alt="" style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0 }} loading="lazy" />
+                            : <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'rgba(96,165,250,0.15)' }} />
                           }
                           <div>
-                            <div style={{ fontFamily: 'var(--font-mono-ui)', fontSize: 12, fontWeight: 600, color: 'var(--zm-text-primary)' }}>{asset.name}</div>
-                            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--zm-text-faint)' }}>{asset.symbol.toUpperCase()}</div>
+                            <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 12, fontWeight: 600, color: 'var(--zm-text-1)' }}>{asset.name}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--zm-text-3)' }}>{asset.symbol.toUpperCase()}</div>
                           </div>
                         </div>
                       </td>
@@ -614,7 +614,7 @@ const Watchlist = memo(() => {
                       {/* 24h */}
                       <td style={{ padding: '10px 12px', textAlign: 'right', width: 90 }}>
                         <span
-                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 600, padding: '2px 6px', borderRadius: 4, color: asset.change24h >= 0 ? 'var(--zm-positive)' : 'var(--zm-negative)', background: asset.change24h >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(251,113,133,0.08)' }}
+                          style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, padding: '2px 6px', borderRadius: 4, color: asset.change24h >= 0 ? 'rgba(52,211,153,1)' : 'rgba(251,113,133,1)', background: asset.change24h >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(251,113,133,0.08)' }}
                         >
                           {formatChange(asset.change24h)}
                         </span>
@@ -622,30 +622,30 @@ const Watchlist = memo(() => {
 
                       {/* 7d */}
                       <td
-                                                style={{ padding: '10px 12px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, width: 80, color: (asset.change7d ?? 0) >= 0 ? 'rgba(52,211,153,0.85)' : 'rgba(251,113,133,0.85)' }}
+                                                style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12, width: 80, color: (asset.change7d ?? 0) >= 0 ? 'rgba(52,211,153,0.85)' : 'rgba(251,113,133,0.85)' }}
                       >
                         {formatChange(asset.change7d ?? 0)}
                       </td>
 
                       {/* MCAP */}
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'var(--zm-text-secondary)', width: 110 }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: 'var(--zm-text-2)', width: 110 }}>
                         {formatCompact(asset.marketCap)}
                       </td>
 
                       {/* Volume */}
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'var(--zm-text-secondary)', width: 110 }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: 'var(--zm-text-2)', width: 110 }}>
                         {formatCompact(asset.volume24h)}
                       </td>
 
-                      {/* Sparkline — hidden mobile */}
-                      {!isMobile && <td style={{ padding: '10px 12px', textAlign: 'right', width: 108 }}>
+                      {/* Sparkline */}
+                      <td style={{ padding: '10px 12px', textAlign: 'right', width: 108 }}>
                         {asset.sparkline && asset.sparkline.length > 1 && (
                           <SparklineChart data={asset.sparkline} width={96} height={28} color="auto" showArea />
                         )}
-                      </td>}
+                      </td>
 
-                      {/* Note — hidden mobile */}
-                      {!isMobile && <td style={{ padding: '10px 12px', minWidth: 140 }}>
+                      {/* Note */}
+                      <td style={{ padding: '10px 12px', minWidth: 140 }}>
                         <NoteCell
                           id={asset.id}
                           note={entry.note}
@@ -653,20 +653,20 @@ const Watchlist = memo(() => {
                           onEdit={handleEditNote}
                           onSave={handleNote}
                         />
-                      </td>}
+                      </td>
 
                       {/* Remove */}
                       <td style={{ padding: '10px 12px', textAlign: 'right', width: 50 }}>
                         <button
                           onClick={() => handleRemove(asset.id)}
-                                                    style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, marginLeft: 'auto', transition: 'all 0.15s', cursor: 'pointer', background: 'transparent', border: 'none', color: 'var(--zm-text-faint)' }}
+                                                    style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, marginLeft: 'auto', transition: 'all 0.15s', cursor: 'pointer', background: 'transparent', border: 'none', color: 'var(--zm-text-3)' }}
                           onMouseEnter={e => {
                             e.currentTarget.style.background = 'rgba(251,113,133,0.10)';
-                            e.currentTarget.style.color = 'rgba(255,68,136,0.90)';
+                            e.currentTarget.style.color = 'rgba(251,113,133,0.9)';
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--zm-text-faint)';
+                            e.currentTarget.style.color = 'var(--zm-text-3)';
                           }}
                           aria-label={"Remove " + asset.name + " from watchlist"}
                         >
@@ -682,16 +682,16 @@ const Watchlist = memo(() => {
 
           {/* Footer */}
           <div
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderTop: '1px solid var(--zm-card-border)', background: 'rgba(255,255,255,0.01)' }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderTop: '1px solid var(--zm-border)', background: 'rgba(255,255,255,0.01)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <StarOff size={10} style={{ color: 'var(--zm-text-faint)' }} />
-              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono-ui)', color: 'var(--zm-text-faint)' }}>
+              <StarOff size={10} style={{ color: 'var(--zm-text-3)' }} />
+              <span style={{ fontSize: 10, fontFamily: 'var(--zm-font-data)', color: 'var(--zm-text-3)' }}>
                 {sorted.length} dari {state.entries.length} coin · Klik ikon catatan untuk edit
               </span>
             </div>
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono-ui)', color: 'var(--zm-text-faint)' }}>
-              Real-time prices · Disimpan di browser
+            <span style={{ fontSize: 10, fontFamily: 'var(--zm-font-data)', color: 'var(--zm-text-3)' }}>
+              Data via Binance WS · Disimpan di browser
             </span>
           </div>
         </div>

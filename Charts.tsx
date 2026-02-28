@@ -1,6 +1,6 @@
 /**
  * Charts.tsx — ZERØ MERIDIAN 2026 Phase 12
- * Multi-pair Advanced Charts page.
+ * Multi-pair TradingView Lightweight Charts page.
  * Features:
  *   - 1, 2, or 4-chart grid layout
  *   - Independent symbol + interval per chart
@@ -19,6 +19,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import GlassCard from '@/components/shared/GlassCard';
 import TradingViewChart from '@/components/tiles/TradingViewChart';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
@@ -55,11 +56,11 @@ const SYMBOL_LABELS = Object.freeze<Record<ChartSymbol, string>>({
 
 // Semantic colors — BOLEH hardcoded (universal, bukan theme UI)
 const SYMBOL_COLORS = Object.freeze<Record<ChartSymbol, string>>({
-  BTCUSDT: 'var(--zm-warning)',
+  BTCUSDT: 'rgba(251,191,36,1)',
   ETHUSDT: 'rgba(99,179,237,1)',
-  SOLUSDT: 'var(--zm-violet)',
+  SOLUSDT: 'rgba(167,139,250,1)',
   BNBUSDT: 'rgba(251,191,36,0.7)',
-  XRPUSDT: 'var(--zm-positive)',
+  XRPUSDT: 'rgba(52,211,153,1)',
   ADAUSDT: 'rgba(249,115,22,1)',
 });
 
@@ -96,18 +97,18 @@ const SlotConfig = memo(({ slot, onSymbol, onInterval, index }: SlotConfigProps)
   }), []);
 
   const makePillBase = useCallback((active: boolean, color?: string) => ({
-    fontFamily: "'Space Mono', monospace",
+    fontFamily: "var(--zm-font-data)",
     fontSize: '9px',
     letterSpacing: '0.06em',
     padding: '2px 7px',
     borderRadius: '4px',
     background: active
-      ? (color ? color.replace('1)', '0.12)') : 'var(--zm-accent-dim)')
-      : 'var(--zm-surface-1)',
+      ? (color ? color.replace('1)', '0.12)') : 'var(--zm-blue-bg)')
+      : 'var(--zm-surface)',
     border: '1px solid ' + (active
-      ? (color ? color.replace('1)', '0.3)') : 'var(--zm-accent-border)')
-      : 'var(--zm-divider)'),
-    color: active ? (color ?? 'var(--zm-accent)') : 'var(--zm-text-faint)',
+      ? (color ? color.replace('1)', '0.3)') : 'var(--zm-blue-border)')
+      : 'var(--zm-border)'),
+    color: active ? (color ?? 'var(--zm-blue)') : 'var(--zm-text-3)',
     cursor: 'pointer',
     willChange: 'transform',
     transition: 'background 0.12s, color 0.12s',
@@ -116,9 +117,9 @@ const SlotConfig = memo(({ slot, onSymbol, onInterval, index }: SlotConfigProps)
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
       <span style={{
-        fontFamily: "'Space Mono', monospace",
+        fontFamily: "var(--zm-font-data)",
         fontSize: '9px',
-        color: 'var(--zm-text-faint)',
+        color: 'var(--zm-text-3)',
         letterSpacing: '0.08em',
       }}>
         {'CHART ' + (index + 1)}
@@ -160,7 +161,7 @@ SlotConfig.displayName = 'SlotConfig';
 
 const Charts = memo(() => {
   const mountedRef = useRef(true);
-  const { isMobile, isTablet } = useBreakpoint();
+  const { isMobile } = useBreakpoint();
   const [layout, setLayout] = useState<LayoutMode>('2x2');
   const [slots, setSlots] = useState<ChartSlot[]>([...DEFAULT_SLOTS]);
 
@@ -184,7 +185,7 @@ const Charts = memo(() => {
   [slots, layout]);
 
   const gridStyle = useMemo(() => {
-    const cols = isMobile ? '1fr' : isTablet ? (layout === '1x1' ? '1fr' : '1fr 1fr') : layout === '1x1' ? '1fr' : '1fr 1fr';
+    const cols = isMobile ? '1fr' : layout === '1x1' ? '1fr' : '1fr 1fr';
     const rows = layout === '2x2' && !isMobile ? '1fr 1fr' : '1fr';
     return { display: 'grid', gridTemplateColumns: cols, gridTemplateRows: rows, gap: '12px', flex: 1, minHeight: 0 };
   }, [layout, isMobile]);
@@ -205,13 +206,13 @@ const Charts = memo(() => {
   }), []);
 
   const layoutBtnStyle = useCallback((active: boolean) => ({
-    fontFamily: "'Space Mono', monospace",
+    fontFamily: "var(--zm-font-data)",
     fontSize: '11px',
     padding: '5px 12px',
     borderRadius: '6px',
-    background: active ? 'var(--zm-accent-dim)' : 'var(--zm-surface-1)',
-    border: '1px solid ' + (active ? 'var(--zm-accent-border)' : 'var(--zm-divider)'),
-    color: active ? 'var(--zm-accent)' : 'var(--zm-text-faint)',
+    background: active ? 'var(--zm-blue-bg)' : 'var(--zm-surface)',
+    border: '1px solid ' + (active ? 'var(--zm-blue-border)' : 'var(--zm-border)'),
+    color: active ? 'var(--zm-blue)' : 'var(--zm-text-3)',
     cursor: 'pointer',
     willChange: 'transform',
     display: 'flex',
@@ -225,9 +226,9 @@ const Charts = memo(() => {
     gap: '8px',
     marginBottom: '14px',
     padding: '10px 14px',
-    background: 'var(--zm-card-bg)',
+    background: 'var(--zm-surface)',
     borderRadius: '8px',
-    border: '1px solid var(--zm-card-border)',
+    border: '1px solid var(--zm-border)',
   }), []);
 
   return (
@@ -236,7 +237,6 @@ const Charts = memo(() => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       style={{
-        padding: isMobile ? '16px' : isTablet ? '20px' : '28px',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -250,23 +250,23 @@ const Charts = memo(() => {
       <div style={headerStyle}>
         <div>
           <h1 style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: '13px',
+            fontFamily: 'var(--zm-font-ui)',
+            fontSize: 20,
             fontWeight: 700,
-            letterSpacing: '0.12em',
-            color: 'var(--zm-text-primary)',
+            letterSpacing: '-0.02em',
+            color: 'var(--zm-text-1)',
             margin: 0,
           }}>
-            CHARTS
+            Charts
           </h1>
           <p style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: '10px',
-            color: 'var(--zm-text-faint)',
+            fontFamily: 'var(--zm-font-data)',
+            fontSize: 10,
+            color: 'var(--zm-text-3)',
             letterSpacing: '0.06em',
             margin: '2px 0 0',
           }}>
-            MULTI-PAIR ADVANCED CHARTS
+            MULTI-PAIR · BINANCE DATA · LIVE
           </p>
         </div>
 

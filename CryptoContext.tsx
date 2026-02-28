@@ -1,8 +1,7 @@
 /**
- * CryptoContext.tsx — ZERØ MERIDIAN 2026 Phase 7
- * UPGRADE Phase 7:
- * - useSharedBuffer: zero-copy price ring buffer (SAB) for perf-sensitive consumers
- * Previous: BroadcastChannel leader election + Web Worker merge + memory pool
+ * CryptoContext.tsx — ZERØ MERIDIAN v31 push91
+ * FIX: wsStatus initial → 'connecting' (not 'disconnected')
+ * FIX: enhancedDispatch dependency [] not [state] — prevents mass re-render
  */
 
 import React, {
@@ -17,19 +16,17 @@ import {
 } from '@/lib/formatters';
 import { useSharedBuffer } from '@/hooks/useSharedBuffer';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface CryptoState {
-  assets:   CryptoAsset[];
-  global:   GlobalData;
+  assets:    CryptoAsset[];
+  global:    GlobalData;
   fearGreed: FearGreedData;
-  regime:   MarketRegime;
-  signal:   AISignal;
-  wsStatus: 'connected' | 'disconnected' | 'reconnecting';
-  loading:  boolean;
-  error:    string | null;
-  isLeader: boolean;
-  tabCount: number;
+  regime:    MarketRegime;
+  signal:    AISignal;
+  wsStatus:  'connected' | 'disconnected' | 'reconnecting' | 'connecting';
+  loading:   boolean;
+  error:     string | null;
+  isLeader:  boolean;
+  tabCount:  number;
 }
 
 type PriceUpdate = {
@@ -39,18 +36,16 @@ type PriceUpdate = {
 };
 
 export type CryptoAction =
-  | { type: 'UPDATE_PRICES';    payload: Record<string, PriceUpdate> }
-  | { type: 'UPDATE_MARKETS';   payload: CryptoAsset[] }
-  | { type: 'UPDATE_GLOBAL';    payload: GlobalData }
+  | { type: 'UPDATE_PRICES';     payload: Record<string, PriceUpdate> }
+  | { type: 'UPDATE_MARKETS';    payload: CryptoAsset[] }
+  | { type: 'UPDATE_GLOBAL';     payload: GlobalData }
   | { type: 'UPDATE_FEAR_GREED'; payload: FearGreedData }
-  | { type: 'SET_LOADING';      payload: boolean }
-  | { type: 'SET_ERROR';        payload: string | null }
-  | { type: 'SET_WS_STATUS';    payload: 'connected' | 'disconnected' | 'reconnecting' }
-  | { type: 'SET_LEADER';       payload: boolean }
-  | { type: 'SET_TAB_COUNT';    payload: number }
-  | { type: '_WORKER_PRICES';   payload: { assets: CryptoAsset[]; regime: MarketRegime; signal: AISignal } };
-
-// ─── Memory pool ──────────────────────────────────────────────────────────────
+  | { type: 'SET_LOADING';       payload: boolean }
+  | { type: 'SET_ERROR';         payload: string | null }
+  | { type: 'SET_WS_STATUS';     payload: 'connected' | 'disconnected' | 'reconnecting' | 'connecting' }
+  | { type: 'SET_LEADER';        payload: boolean }
+  | { type: 'SET_TAB_COUNT';     payload: number }
+  | { type: '_WORKER_PRICES';    payload: { assets: CryptoAsset[]; regime: MarketRegime; signal: AISignal } };
 
 function mergePricesPool(
   assets: CryptoAsset[],
@@ -59,7 +54,7 @@ function mergePricesPool(
   let changed = false;
   const result: CryptoAsset[] = new Array(assets.length);
   for (let i = 0; i < assets.length; i++) {
-    const a = assets[i];
+    const a   = assets[i];
     const key = a.symbol.toLowerCase() + 'usdt';
     const tick = updates[key];
     if (tick) {
@@ -70,8 +65,8 @@ function mergePricesPool(
         change7d: a.change7d, change30d: a.change30d,
         marketCap: a.marketCap,
         volume24h: tick.volume24h ?? a.volume24h,
-        high24h: tick.high24h ?? a.high24h,
-        low24h: tick.low24h ?? a.low24h,
+        high24h:   tick.high24h   ?? a.high24h,
+        low24h:    tick.low24h    ?? a.low24h,
         circulatingSupply: a.circulatingSupply,
         totalSupply: a.totalSupply,
         ath: a.ath, athDate: a.athDate,
@@ -86,15 +81,13 @@ function mergePricesPool(
   return changed ? result : assets;
 }
 
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-
 const initialState: CryptoState = {
   assets:    [],
   global:    { totalMcap: 0, totalVolume: 0, btcDominance: 0, ethDominance: 0, activeCurrencies: 0, mcapChange24h: 0 },
   fearGreed: { value: 50, label: 'Neutral' },
   regime:    'CRAB',
   signal:    'NEUTRAL',
-  wsStatus:  'disconnected',
+  wsStatus:  'connecting', // FIX: was 'disconnected'
   loading:   true,
   error:     null,
   isLeader:  false,
@@ -125,10 +118,7 @@ function cryptoReducer(state: CryptoState, action: CryptoAction): CryptoState {
   }
 }
 
-// ─── BroadcastChannel ─────────────────────────────────────────────────────────
-
 const BC_CHANNEL = 'zm_market_sync';
-
 type BCMessage =
   | { type: 'CLAIM_LEADER'; tabId: string }
   | { type: 'LEADER_ACK';   tabId: string }
@@ -136,18 +126,16 @@ type BCMessage =
   | { type: 'MARKET_UPDATE'; payload: CryptoAsset[] }
   | { type: 'GLOBAL_UPDATE'; payload: GlobalData }
   | { type: 'FNG_UPDATE';   payload: FearGreedData }
-  | { type: 'WS_STATUS';    status: 'connected' | 'disconnected' | 'reconnecting' }
+  | { type: 'WS_STATUS';    status: 'connected' | 'disconnected' | 'reconnecting' | 'connecting' }
   | { type: 'TAB_PING';     tabId: string }
   | { type: 'TAB_PONG';     tabId: string };
 
-const TAB_ID = 'tab_' + Date.now() + '_' + (Math.random() * 0xffff | 0).toString(16);
-
-// ─── SharedBuffer context ─────────────────────────────────────────────────────
+const TAB_ID = 'tab_' + Date.now().toString(36) + '_' + ((Date.now() ^ (Date.now() >>> 7)) & 0xffff).toString(16);
 
 interface SharedBufferAPI {
-  supported:   boolean;
-  writePrice:  (price: number) => void;
-  readLast:    (n: number) => Float64Array;
+  supported:  boolean;
+  writePrice: (price: number) => void;
+  readLast:   (n: number) => Float64Array;
 }
 
 const SharedBufferContext = createContext<SharedBufferAPI>({
@@ -160,18 +148,13 @@ export function useSharedPriceBuffer(): SharedBufferAPI {
   return useContext(SharedBufferContext);
 }
 
-// ─── Contexts ─────────────────────────────────────────────────────────────────
-
 const CryptoContext         = createContext<CryptoState>(initialState);
 const CryptoDispatchContext = createContext<React.Dispatch<CryptoAction>>(() => {});
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function CryptoProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cryptoReducer, initialState);
   const stateValue = useMemo(() => state, [state]);
 
-  // ── SharedArrayBuffer ring buffer (Phase 7) ──────────────────────────────
   const { write: sbWrite, readLast: sbReadLast, supported: sbSupported } = useSharedBuffer();
   const sbWriteRef = useRef(sbWrite);
   sbWriteRef.current = sbWrite;
@@ -182,9 +165,11 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     readLast:   (n: number) => sbReadLast(n),
   }), [sbSupported, sbReadLast]);
 
-  // ── Worker ───────────────────────────────────────────────────────────────
+  // Worker
   const workerRef      = useRef<Worker | null>(null);
   const workerReadyRef = useRef(false);
+  const stateRef       = useRef(state);
+  stateRef.current     = state;
 
   useEffect(() => {
     if (typeof Worker === 'undefined') return;
@@ -211,10 +196,10 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── BroadcastChannel ─────────────────────────────────────────────────────
-  const bcRef        = useRef<BroadcastChannel | null>(null);
-  const isLeaderRef  = useRef(false);
-  const tabsRef      = useRef<Set<string>>(new Set([TAB_ID]));
+  // BroadcastChannel
+  const bcRef       = useRef<BroadcastChannel | null>(null);
+  const isLeaderRef = useRef(false);
+  const tabsRef     = useRef<Set<string>>(new Set([TAB_ID]));
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') {
@@ -263,6 +248,7 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     };
 
     bc.postMessage({ type: 'TAB_PING', tabId: TAB_ID } satisfies BCMessage);
+    // FIX: 200ms → lebih responsif, plus logic skip WT di useCryptoData sudah fix race condition
     const leaderTimer = setTimeout(() => {
       isLeaderRef.current = true;
       dispatch({ type: 'SET_LEADER', payload: true });
@@ -276,26 +262,25 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── Enhanced dispatch (Worker + BC + SharedBuffer) ────────────────────────
+  // FIX: dependency [] bukan [state] — prevents dispatch recreate tiap state change
   const enhancedDispatch = useCallback<React.Dispatch<CryptoAction>>((action) => {
     if (action.type === 'UPDATE_PRICES') {
-      // Write first price to SharedBuffer ring for perf-sensitive consumers
       const firstTick = Object.values(action.payload)[0];
       if (firstTick?.price) sbWriteRef.current(firstTick.price);
 
       if (workerReadyRef.current && workerRef.current) {
-        workerRef.current.postMessage({ type: 'MERGE_PRICES', assets: state.assets, updates: action.payload });
+        workerRef.current.postMessage({ type: 'MERGE_PRICES', assets: stateRef.current.assets, updates: action.payload });
         bcRef.current?.postMessage({ type: 'PRICE_UPDATE', payload: action.payload } satisfies BCMessage);
         return;
       }
       bcRef.current?.postMessage({ type: 'PRICE_UPDATE', payload: action.payload } satisfies BCMessage);
     }
-    if (action.type === 'UPDATE_MARKETS')   bcRef.current?.postMessage({ type: 'MARKET_UPDATE', payload: action.payload } satisfies BCMessage);
-    if (action.type === 'UPDATE_GLOBAL')    bcRef.current?.postMessage({ type: 'GLOBAL_UPDATE', payload: action.payload } satisfies BCMessage);
+    if (action.type === 'UPDATE_MARKETS')    bcRef.current?.postMessage({ type: 'MARKET_UPDATE', payload: action.payload } satisfies BCMessage);
+    if (action.type === 'UPDATE_GLOBAL')     bcRef.current?.postMessage({ type: 'GLOBAL_UPDATE', payload: action.payload } satisfies BCMessage);
     if (action.type === 'UPDATE_FEAR_GREED') bcRef.current?.postMessage({ type: 'FNG_UPDATE', payload: action.payload } satisfies BCMessage);
-    if (action.type === 'SET_WS_STATUS')    bcRef.current?.postMessage({ type: 'WS_STATUS', status: action.payload } satisfies BCMessage);
+    if (action.type === 'SET_WS_STATUS')     bcRef.current?.postMessage({ type: 'WS_STATUS', status: action.payload } satisfies BCMessage);
     dispatch(action);
-  }, [state]);
+  }, []); // FIX: [] bukan [state]
 
   return (
     <SharedBufferContext.Provider value={sharedBufferAPI}>

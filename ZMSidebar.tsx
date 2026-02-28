@@ -1,269 +1,280 @@
 /**
- * ZMSidebar.tsx — ZERØ MERIDIAN push53
- * CYBER-NEON PRO OVERHAUL:
- *   - Deep Void bg rgba(8,8,11) + neon cyan active states
- *   - 72px icon-only collapsed, 240px expanded
- *   - Active item: cyan left border + glow bg
- *   - Hover: subtle neon glow
- *   - Neon green LIVE dot footer
- *   - Space Grotesk labels
- * - React.memo + displayName ✓
- * - rgba() only ✓
- * - var(--zm-*) ✓
- * - Object.freeze() static data ✓
- * - useCallback + useMemo ✓
- * - mountedRef ✓
- * - aria-label + role ✓
+ * ZMSidebar.tsx — ZERØ MERIDIAN push93
+ * 200px expanded / 44px collapsed — Bloomberg terminal density
+ * ZERO className | var(--zm-*) | React.memo | useMemo | mountedRef
  */
 
-import React, { memo, useCallback, useMemo, useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 interface NavItem  { id: string; label: string; path: string; icon: React.ReactNode; badge?: string; }
-interface NavGroup { label: string; items: readonly NavItem[]; }
-interface ZMSidebarProps { expanded: boolean; onToggle: () => void; currentPath: string; }
+interface NavGroup { id: string; label: string; items: NavItem[]; }
+interface ZMSidebarProps {
+  expanded: boolean; onToggle: () => void; currentPath: string;
+  headerHeight: number; expandedWidth: number; collapsedWidth: number;
+}
 
-// ─── Icons ─────────────────────────────────────────────────────────────────────
-const I = (d: string, extra?: string) => (
-  <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-    <path d={d} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...(extra ? { opacity: extra } : {})} />
+// ── Icons — 12x12, strokeWidth 1.2 ──────────────────────────────────────────
+const Ic = (d: string, extra?: React.ReactNode) => (
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+    <path d={d} stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+    {extra}
   </svg>
 );
 
-const DashIcon      = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="10" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="10" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="10" y="10" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg>;
-const MarketsIcon   = () => I('M1,13 L5,8 L8,11 L12,5 L17,7');
-const WatchlistIcon = () => I('M9 2l2.09 4.26L16 7.27l-3.5 3.41.83 4.82L9 13.2l-4.33 2.3.83-4.82L2 7.27l4.91-.71z');
-const AlertIcon     = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2C6.24 2 4 4.24 4 7v5l-1.5 2h13L14 12V7c0-2.76-2.24-5-5-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M7 15a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const PortfolioIcon = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="5" width="14" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M6 5V4a3 3 0 0 1 6 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const AIIcon        = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><polygon points="9,1 17,14 1,14" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/><circle cx="9" cy="9" r="2" fill="currentColor" opacity="0.7"/></svg>;
-const OnChainIcon   = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="1" y="7" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="7" y="4" width="4" height="13" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="13" y="1" width="4" height="16" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>;
-const SmartMoneyIcon= () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M9 5v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const ChartsIcon    = () => I('M2,14 L5,8 L8,10 L11,5 L14,9 L17,4');
-const DefiIcon      = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="4" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="14" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="14" cy="14" r="2.5" stroke="currentColor" strokeWidth="1.5"/><line x1="6.5" y1="8" x2="11.5" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="6.5" y1="10" x2="11.5" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const FundamentalsIcon = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><line x1="9" y1="5" x2="9" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="9" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const DerivativesIcon  = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 14c2-4 4-8 7-8s5 4 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="6" r="2" stroke="currentColor" strokeWidth="1.5"/></svg>;
-const NetworksIcon     = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="3" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="15" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="3" cy="15" r="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="15" cy="15" r="1.5" stroke="currentColor" strokeWidth="1.5"/><line x1="4.5" y1="4.5" x2="7.5" y2="7.5" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="13.5" y1="4.5" x2="10.5" y2="7.5" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="4.5" y1="13.5" x2="7.5" y2="10.5" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="13.5" y1="13.5" x2="10.5" y2="10.5" stroke="currentColor" strokeWidth="1" opacity="0.5"/></svg>;
-const OrderBookIcon    = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="2" width="14" height="2" rx="1" fill="currentColor" opacity="0.7"/><rect x="2" y="6" width="10" height="2" rx="1" fill="currentColor" opacity="0.5"/><rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor" opacity="0.4"/><rect x="2" y="14" width="7" height="2" rx="1" fill="currentColor" opacity="0.3"/></svg>;
-const NFTIcon          = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M6 12l2.5-3.5 2 2.5 1.5-2L14 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="7.5" cy="7" r="1.2" fill="currentColor" opacity="0.7"/></svg>;
-const NewsIcon = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="3" width="14" height="2" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="7" width="14" height="1.5" rx="0.75" fill="currentColor" opacity="0.5"/><rect x="2" y="11" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/><rect x="2" y="14" width="7" height="1.5" rx="0.75" fill="currentColor" opacity="0.3"/></svg>;
-const ConverterIcon    = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h12M12 6l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M15 9H3M6 12l-3-3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4"/></svg>;
-const SettingsIcon     = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.22 3.22l1.42 1.42M13.36 13.36l1.42 1.42M3.22 14.78l1.42-1.42M13.36 4.64l1.42-1.42" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-const StakingIcon      = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><polygon points="9,2 16,6 16,12 9,16 2,12 2,6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><line x1="9" y1="2" x2="9" y2="16" stroke="currentColor" strokeWidth="1" opacity="0.4"/><line x1="2" y1="6" x2="16" y2="6" stroke="currentColor" strokeWidth="1" opacity="0.4"/></svg>;
-const BridgesIcon      = () => <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M1 13 Q1 7 5 7 Q9 7 9 11 Q9 7 13 7 Q17 7 17 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="1" y1="13" x2="17" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
+const ICONS = {
+  dashboard:    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.25"/><rect x="7.5" y="1" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.25"/><rect x="1" y="7.5" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.25"/><rect x="7.5" y="7.5" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.25"/></svg>,
+  markets:      Ic('M1 9.5L3.5 6.5L6 8L9.5 3.5L12 5.5'),
+  watchlist:    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L7.8 4.4L11 4.8L8.7 7L9.3 10.1L6.5 8.6L3.7 10.1L4.3 7L2 4.8L5.2 4.4Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/></svg>,
+  charts:       Ic('M1 10.5L3.5 6.5L6.5 8.5L9.5 4L12 6.5'),
+  orderbook:    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><line x1="1.5" y1="2.5" x2="8" y2="2.5" stroke="rgba(56,139,253,1)" strokeWidth="1.25" strokeLinecap="round"/><line x1="1.5" y1="5" x2="5.5" y2="5" stroke="rgba(56,139,253,0.5)" strokeWidth="1.25" strokeLinecap="round"/><line x1="1.5" y1="8.5" x2="9" y2="8.5" stroke="rgba(239,83,80,1)" strokeWidth="1.25" strokeLinecap="round"/><line x1="1.5" y1="11" x2="6" y2="11" stroke="rgba(239,83,80,0.5)" strokeWidth="1.25" strokeLinecap="round"/></svg>,
+  derivatives:  Ic('M1 10L3.5 5L6.5 7.5L9.5 2.5L12 5.5'),
+  defi:         <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="2.5" cy="6.5" r="1.6" stroke="currentColor" strokeWidth="1.25"/><circle cx="10.5" cy="2.5" r="1.6" stroke="currentColor" strokeWidth="1.25"/><circle cx="10.5" cy="10.5" r="1.6" stroke="currentColor" strokeWidth="1.25"/><line x1="4" y1="5.8" x2="9" y2="3.2" stroke="currentColor" strokeWidth="1.0" strokeLinecap="round"/><line x1="4" y1="7.2" x2="9" y2="9.8" stroke="currentColor" strokeWidth="1.0" strokeLinecap="round"/></svg>,
+  onchain:      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="7.5" width="2.5" height="4" rx="0.6" stroke="currentColor" strokeWidth="1.25"/><rect x="5" y="4.5" width="2.5" height="7" rx="0.6" stroke="currentColor" strokeWidth="1.25"/><rect x="9.5" y="1.5" width="2.5" height="10" rx="0.6" stroke="currentColor" strokeWidth="1.25"/></svg>,
+  intelligence: <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.25"/><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.25"/><line x1="6.5" y1="1.5" x2="6.5" y2="4.7" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/></svg>,
+  sentiment:    Ic('M1 8Q3 2 6.5 5.5Q10 9 12 3'),
+  fundamentals: Ic('M1 11.5L1 6L3.5 6L3.5 11.5M4.5 11.5L4.5 3L7 3L7 11.5M8 11.5L8 7L10.5 7L10.5 11.5'),
+  tokens:       <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.25"/><path d="M4 6.5h5M6.5 4v5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/></svg>,
+  networks:     <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.25"/><circle cx="2" cy="2" r="1.2" stroke="currentColor" strokeWidth="1.25"/><circle cx="11" cy="2" r="1.2" stroke="currentColor" strokeWidth="1.25"/><circle cx="2" cy="11" r="1.2" stroke="currentColor" strokeWidth="1.25"/><circle cx="11" cy="11" r="1.2" stroke="currentColor" strokeWidth="1.25"/><line x1="2.9" y1="2.9" x2="5.3" y2="5.3" stroke="currentColor" strokeWidth="1.0"/><line x1="10.1" y1="2.9" x2="7.7" y2="5.3" stroke="currentColor" strokeWidth="1.0"/><line x1="2.9" y1="10.1" x2="5.3" y2="7.7" stroke="currentColor" strokeWidth="1.0"/><line x1="10.1" y1="10.1" x2="7.7" y2="7.7" stroke="currentColor" strokeWidth="1.0"/></svg>,
+  security:     Ic('M6.5 1.5L11.5 3.2V7.5C11.5 10 9.3 12 6.5 12.5C3.7 12 1.5 10 1.5 7.5V3.2L6.5 1.5Z'),
+  smartmoney:   Ic('M1 9.5L4 5.5L7 7L9.5 3.5L12 5.5', <path d="M9.5 3.5h2.5v2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>),
+  portfolio:    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.25"/><path d="M6.5 6.5L6.5 1.5A5 5 0 0 1 11.5 6.5Z" fill="currentColor" opacity="0.15"/><path d="M6.5 6.5L11.5 6.5A5 5 0 0 1 6.5 11.5Z" fill="currentColor" opacity="0.08"/></svg>,
+  alerts:       <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2C4.8 2 3.5 3.3 3.5 5V9L2 10.5H11L9.5 9V5C9.5 3.3 8.2 2 6.5 2Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/><path d="M5.2 12a1.3 1.3 0 002.6 0" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/></svg>,
+  converter:    Ic('M1.5 4.5h10M8 2l3 2.5L8 7M11.5 8.5h-10M5 6l-3 2.5L5 11'),
+  aisignals:    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 7.5L4 5L7 6.5L10 3L12 5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="5" r="1.2" fill="currentColor" opacity="0.6"/></svg>,
+  settings:     <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.25"/><path d="M6.5 1.5v1M6.5 10.5v1M1.5 6.5h1M10.5 6.5h1M3 3l.7.7M9.3 9.3l.7.7M3 10l.7-.7M9.3 3.7l.7-.7" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/></svg>,
+};
 
 const NAV_GROUPS: readonly NavGroup[] = Object.freeze([
-  { label: 'CORE', items: Object.freeze([
-    { id:'dashboard',  label:'Dashboard',  path:'/dashboard',  icon: <DashIcon /> },
-    { id:'markets',    label:'Markets',    path:'/markets',    icon: <MarketsIcon /> },
-    { id:'watchlist',  label:'Watchlist',  path:'/watchlist',  icon: <WatchlistIcon /> },
-    { id:'alerts',     label:'Alerts',     path:'/alerts',     icon: <AlertIcon /> },
-    { id:'news',       label:'News Feed',  path:'/news-feed',  icon: <NewsIcon /> },
-    { id:'portfolio',  label:'Portfolio',  path:'/portfolio',  icon: <PortfolioIcon /> },
-  ])},
-  { label: 'INTELLIGENCE', items: Object.freeze([
-    { id:'intelligence', label:'AI Intel',    path:'/intelligence',  icon: <AIIcon /> },
-    { id:'ai-signals',   label:'AI Signals',  path:'/ai-signals',    icon: <AIIcon /> },
-    { id:'smart-money',  label:'Smart Money', path:'/smart-money',   icon: <SmartMoneyIcon /> },
-    { id:'onchain',      label:'On-Chain',    path:'/onchain',       icon: <OnChainIcon />, badge:'NEW' },
-    { id:'sentiment',    label:'Sentiment',   path:'/sentiment',     icon: <AlertIcon /> },
-  ])},
-  { label: 'ANALYTICS', items: Object.freeze([
-    { id:'defi',         label:'DeFi',        path:'/defi',          icon: <DefiIcon /> },
-    { id:'derivatives',  label:'Derivatives', path:'/derivatives',   icon: <DerivativesIcon /> },
-    { id:'orderbook',    label:'Order Book',  path:'/order-book',    icon: <OrderBookIcon /> },
-    { id:'charts',       label:'Charts',      path:'/charts',        icon: <ChartsIcon /> },
-    { id:'fundamentals', label:'Fundamentals',path:'/fundamentals',  icon: <FundamentalsIcon /> },
-    { id:'networks',     label:'Networks',    path:'/networks',      icon: <NetworksIcon /> },
-  ])},
-  { label: 'ASSETS', items: Object.freeze([
-    { id:'nft',      label:'NFT',      path:'/nft',      icon: <NFTIcon /> },
-    { id:'staking',  label:'Staking',  path:'/staking',  icon: <StakingIcon /> },
-    { id:'bridges',  label:'Bridges',  path:'/bridges',  icon: <BridgesIcon /> },
-    { id:'converter',label:'Converter',path:'/converter',icon: <ConverterIcon /> },
-  ])},
-  { label: 'SYSTEM', items: Object.freeze([
-    { id:'settings', label:'Settings', path:'/settings', icon: <SettingsIcon /> },
-  ])},
+  {
+    id: 'core', label: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: ICONS.dashboard },
+      { id: 'markets',   label: 'Markets',   path: '/markets',   icon: ICONS.markets   },
+      { id: 'watchlist', label: 'Watchlist', path: '/watchlist', icon: ICONS.watchlist },
+    ],
+  },
+  {
+    id: 'trading', label: 'Trading',
+    items: [
+      { id: 'charts',      label: 'Charts',      path: '/charts',      icon: ICONS.charts      },
+      { id: 'orderbook',   label: 'Order Book',  path: '/orderbook',   icon: ICONS.orderbook   },
+      { id: 'derivatives', label: 'Derivatives', path: '/derivatives', icon: ICONS.derivatives },
+      { id: 'converter',   label: 'Converter',   path: '/converter',   icon: ICONS.converter   },
+    ],
+  },
+  {
+    id: 'analytics', label: 'Analytics',
+    items: [
+      { id: 'defi',         label: 'DeFi',         path: '/defi',         icon: ICONS.defi         },
+      { id: 'onchain',      label: 'On-Chain',     path: '/onchain',      icon: ICONS.onchain,      badge: 'LIVE' },
+      { id: 'fundamentals', label: 'Fundamentals', path: '/fundamentals', icon: ICONS.fundamentals },
+      { id: 'tokens',       label: 'Tokens',       path: '/tokens',       icon: ICONS.tokens       },
+      { id: 'sentiment',    label: 'Sentiment',    path: '/sentiment',    icon: ICONS.sentiment    },
+    ],
+  },
+  {
+    id: 'intel', label: 'Intelligence',
+    items: [
+      { id: 'smartmoney',   label: 'Smart Money', path: '/smart-money',  icon: ICONS.smartmoney                },
+      { id: 'networks',     label: 'Networks',    path: '/networks',     icon: ICONS.networks                  },
+      { id: 'security',     label: 'Security',    path: '/security',     icon: ICONS.security                  },
+      { id: 'aisignals',    label: 'AI Signals',  path: '/ai-signals',   icon: ICONS.aisignals, badge: 'BETA'  },
+      { id: 'intelligence', label: 'Research',    path: '/intelligence', icon: ICONS.intelligence              },
+    ],
+  },
+  {
+    id: 'personal', label: 'Personal',
+    items: [
+      { id: 'portfolio', label: 'Portfolio', path: '/portfolio', icon: ICONS.portfolio },
+      { id: 'alerts',    label: 'Alerts',    path: '/alerts',    icon: ICONS.alerts    },
+    ],
+  },
 ]);
 
-// ─── NavItem ──────────────────────────────────────────────────────────────────
+const BOTTOM: NavItem[] = [{ id: 'settings', label: 'Settings', path: '/settings', icon: ICONS.settings }];
 
-const NavItemBtn = memo(({ item, expanded, isActive, onNavigate }: {
-  item: NavItem; expanded: boolean; isActive: boolean; onNavigate: (p: string) => void;
-}) => {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <motion.button
-      onClick={() => onNavigate(item.path)}
-      style={{
-        display:        'flex',
-        alignItems:     'center',
-        gap:            '10px',
-        width:          '100%',
-        padding:        expanded ? '8px 10px' : '9px',
-        borderRadius:   '10px',
-        background:     isActive ? 'var(--zm-accent-bg)'    : 'transparent',
-        border:         isActive ? '1px solid rgba(0,238,255,0.18)' : '1px solid transparent',
-        borderLeft:     isActive ? '2px solid var(--zm-accent)'    : '2px solid transparent',
-        color:          isActive ? 'var(--zm-accent)'        : 'var(--zm-text-secondary)',
-        cursor:         'pointer',
-        textAlign:      'left' as const,
-        willChange:     'transform',
-        transition:     'background 150ms, color 150ms, border-color 150ms',
-        boxShadow:      isActive ? '0 0 12px var(--zm-accent-dim)' : 'none',
-        justifyContent: expanded ? 'flex-start' : 'center',
-        flexShrink:     0,
-      }}
-      whileHover={prefersReducedMotion ? {} : {
-        background: isActive ? 'var(--zm-accent-dim)' : 'rgba(0,238,255,0.04)',
-        color: isActive ? 'var(--zm-accent)' : 'var(--zm-text-primary)',
-      }}
-      whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-      aria-label={item.label}
-      aria-current={isActive ? 'page' : undefined}
-      title={expanded ? undefined : item.label}
-    >
-      <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {item.icon}
-      </span>
+// ── Logo ─────────────────────────────────────────────────────────────────────
+const Logo = memo(({ expanded }: { expanded: boolean }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '0 11px', height: 48, flexShrink: 0,
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  }}>
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <circle cx="11" cy="11" r="9" stroke="rgba(0,238,255,0.12)" strokeWidth="1" fill="rgba(0,238,255,0.03)"/>
+      <circle cx="11" cy="11" r="6.5" stroke="rgba(0,238,255,0.85)" strokeWidth="1.3" fill="none"/>
+      <line x1="13.5" y1="7" x2="8.5" y2="15" stroke="rgba(0,238,255,1)" strokeWidth="1.4" strokeLinecap="round"/>
+      <circle cx="11" cy="11" r="1.2" fill="rgba(0,238,255,0.4)"/>
+    </svg>
+    <AnimatePresence initial={false}>
       {expanded && (
-        <>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px', fontWeight: isActive ? 600 : 400, letterSpacing: '-0.01em', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.label}
-          </span>
-          {item.badge && (
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '7px', letterSpacing: '0.08em', background: 'rgba(0,238,255,0.12)', border: '1px solid rgba(0,238,255,0.28)', color: 'var(--zm-accent)', borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>
-              {item.badge}
-            </span>
-          )}
-        </>
+        <motion.div
+          initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -5 }} transition={{ duration: 0.13 }}
+          style={{ overflow: 'hidden', whiteSpace: 'nowrap' as const }}
+        >
+          <div style={{ fontFamily: 'var(--zm-font-ui)', fontSize: 12, fontWeight: 700, color: 'var(--zm-text-1)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+            ZERØ MERIDIAN
+          </div>
+          <div style={{ fontFamily: 'var(--zm-font-data)', fontSize: 7.5, color: 'var(--zm-text-4)', letterSpacing: '0.14em', marginTop: 1 }}>
+            TERMINAL v3.1
+          </div>
+        </motion.div>
       )}
-    </motion.button>
-  );
-});
-NavItemBtn.displayName = 'NavItemBtn';
-
-// ─── NavGroup ─────────────────────────────────────────────────────────────────
-
-const NavGroupSection = memo(({ group, expanded, currentPath, onNavigate }: {
-  group: NavGroup; expanded: boolean; currentPath: string; onNavigate: (p: string) => void;
-}) => (
-  <div style={{ marginBottom: '4px' }}>
-    {expanded && (
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '0.14em', color: 'var(--zm-text-faint)', padding: '10px 10px 4px', textTransform: 'uppercase', fontWeight: 600 }}>
-        {group.label}
-      </div>
-    )}
-    {!expanded && <div style={{ height: '8px' }} />}
-    {group.items.map(item => (
-      <NavItemBtn
-        key={item.id}
-        item={item}
-        expanded={expanded}
-        isActive={currentPath === item.path || currentPath.startsWith(item.path + '/')}
-        onNavigate={onNavigate}
-      />
-    ))}
+    </AnimatePresence>
   </div>
 ));
-NavGroupSection.displayName = 'NavGroupSection';
+Logo.displayName = 'Logo';
 
-// ─── ZMSidebar ────────────────────────────────────────────────────────────────
+// ── Group Label ───────────────────────────────────────────────────────────────
+const GroupLbl = memo(({ label, expanded }: { label: string; expanded: boolean }) => {
+  if (!expanded) return <div style={{ height: 1, margin: '5px 8px', background: 'rgba(255,255,255,0.05)' }} />;
+  return (
+    <div style={{
+      fontFamily: 'var(--zm-font-data)', fontSize: 7.5, fontWeight: 700,
+      letterSpacing: '0.16em', color: 'var(--zm-text-4)',
+      textTransform: 'uppercase' as const,
+      padding: '9px 10px 2px',
+    }}>{label}</div>
+  );
+});
+GroupLbl.displayName = 'GroupLbl';
 
-const ZMSidebar = memo(({ expanded, onToggle, currentPath }: ZMSidebarProps) => {
-  const mountedRef           = useRef(true);
-  const prefersReducedMotion = useReducedMotion();
-  const navigate             = useNavigate();
+// ── Nav Button ────────────────────────────────────────────────────────────────
+const NavBtn = memo(({ item, active, expanded, onNav }: {
+  item: NavItem; active: boolean; expanded: boolean; onNav: (p: string) => void;
+}) => {
+  const rm = useReducedMotion();
+  const [hov, setHov] = useState(false);
+
+  const btnS = useMemo(() => ({
+    display: 'flex', alignItems: 'center',
+    gap: 8, width: '100%',
+    padding: expanded ? '5px 10px' : '5px 0',
+    justifyContent: expanded ? 'flex-start' as const : 'center' as const,
+    borderRadius: 4, border: 'none', cursor: 'pointer',
+    background: active ? 'rgba(0,238,255,0.07)' : hov ? 'rgba(255,255,255,0.04)' : 'transparent',
+    color: active ? 'var(--zm-cyan)' : hov ? 'var(--zm-text-1)' : 'var(--zm-text-2)',
+    transition: rm ? 'none' : 'all 90ms ease',
+    position: 'relative' as const,
+    outline: 'none', WebkitTapHighlightColor: 'transparent',
+  }), [active, hov, expanded, rm]);
+
+  const lblS = useMemo(() => ({
+    fontFamily: 'var(--zm-font-ui)', fontSize: 12,
+    fontWeight: active ? 500 : 400,
+    whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, flex: 1,
+    letterSpacing: '-0.005em',
+  }), [active]);
+
+  const badgeS = useMemo(() => ({
+    fontFamily: 'var(--zm-font-data)', fontSize: 7, fontWeight: 700,
+    letterSpacing: '0.08em', padding: '1px 3px', borderRadius: 2,
+    background: item.badge === 'LIVE' ? 'var(--zm-green-bg)' : 'rgba(0,238,255,0.07)',
+    color:      item.badge === 'LIVE' ? 'var(--zm-green)'    : 'var(--zm-cyan)',
+    border: `1px solid ${item.badge === 'LIVE' ? 'var(--zm-green-border)' : 'rgba(0,238,255,0.18)'}`,
+    flexShrink: 0,
+  }), [item.badge]);
+
+  return (
+    <button type="button" onClick={() => onNav(item.path)}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      aria-label={item.label} aria-current={active ? 'page' : undefined}
+      title={!expanded ? item.label : undefined} style={btnS}
+    >
+      {active && (
+        <div style={{
+          position: 'absolute', left: 0, top: '10%', bottom: '10%',
+          width: 2, borderRadius: 2,
+          background: 'var(--zm-cyan)',
+          boxShadow: '0 0 5px rgba(0,238,255,0.6)',
+        }} />
+      )}
+      <span style={{ color: 'inherit', flexShrink: 0, display: 'flex' }}>{item.icon}</span>
+      {expanded && <motion.span initial={false} animate={{ opacity: 1 }} style={lblS}>{item.label}</motion.span>}
+      {expanded && item.badge && <span style={badgeS}>{item.badge}</span>}
+    </button>
+  );
+});
+NavBtn.displayName = 'NavBtn';
+
+// ── ZMSidebar ─────────────────────────────────────────────────────────────────
+const ZMSidebar = memo(({ expanded, onToggle, currentPath, headerHeight, expandedWidth, collapsedWidth }: ZMSidebarProps) => {
+  const rm         = useReducedMotion();
+  const navigate   = useNavigate();
+  const mountedRef = useRef(true);
 
   React.useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  const handleNavigate = useCallback((path: string) => {
-    if (!mountedRef.current) return;
-    navigate(path);
-  }, [navigate]);
+  const nav = useCallback((path: string) => { if (mountedRef.current) navigate(path); }, [navigate]);
+  const isActive = useCallback((path: string) =>
+    currentPath === path || (path !== '/dashboard' && currentPath.startsWith(path)),
+    [currentPath]
+  );
 
-  const sidebarStyle = useMemo((): React.CSSProperties => ({
-    position:     'fixed',
-    top:          0, left: 0, bottom: 0,
-    zIndex:       100,
-    width:        expanded ? '240px' : '72px',
-    display:      'flex',
-    flexDirection:'column',
-    background:   'var(--zm-sidebar-bg)',
-    borderRight:  '1px solid rgba(0,238,255,0.12)',
-    transition:   prefersReducedMotion ? 'none' : 'width 0.28s cubic-bezier(0.22,1,0.36,1)',
-    willChange:   'width',
-    overflowX:    'hidden',
-  }), [expanded, prefersReducedMotion]);
+  const sidebarS = useMemo(() => ({
+    position:      'fixed' as const,
+    top:           0, left: 0,
+    height:        '100vh',
+    width:         expanded ? expandedWidth : collapsedWidth,
+    background:    'rgba(10,13,18,1)',
+    borderRight:   '1px solid rgba(255,255,255,0.06)',
+    display:       'flex', flexDirection: 'column' as const,
+    zIndex:        180, overflow: 'hidden',
+    transition:    rm ? 'none' : `width 200ms cubic-bezier(0.22,1,0.36,1)`,
+  }), [expanded, expandedWidth, collapsedWidth, rm]);
+
+  const scrollS = useMemo(() => ({
+    flex: 1, overflowY: 'auto' as const, overflowX: 'hidden',
+    padding: expanded ? '4px 7px' : '4px 5px',
+    scrollbarWidth: 'none' as const,
+  }), [expanded]);
+
+  const bottomS = useMemo(() => ({
+    padding:   expanded ? '4px 7px' : '4px 5px',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+    flexShrink: 0,
+  }), [expanded]);
 
   return (
-    <aside style={sidebarStyle} aria-label="Main navigation sidebar" role="navigation">
-
-      {/* ── Logo header ── */}
-      <div style={{
-        padding:        expanded ? '16px 14px 12px' : '12px 8px',
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: expanded ? 'space-between' : 'center',
-        borderBottom:   '1px solid var(--zm-card-border)',
-        flexShrink:     0,
-        minHeight:      '64px',
-      }}>
-        {/* ZM Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <motion.div
-            style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--zm-accent), var(--zm-positive))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 18px rgba(0,238,255,0.45), 0 0 6px var(--zm-accent-border) inset', cursor: 'pointer', willChange: 'transform' }}
-            animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 18px rgba(0,238,255,0.45), 0 0 6px var(--zm-accent-border) inset', '0 0 28px rgba(0,238,255,0.70), 0 0 10px rgba(0,238,255,0.30) inset', '0 0 18px rgba(0,238,255,0.45), 0 0 6px var(--zm-accent-border) inset'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            whileHover={prefersReducedMotion ? {} : { boxShadow: '0 0 36px rgba(0,238,255,0.80)' }}
-            onClick={onToggle}
-            aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 900, color: 'var(--zm-bg-base)', letterSpacing: '-1px', filter: 'drop-shadow(0 0 2px rgba(5,5,7,0.5))' }}>ZM</span>
-          </motion.div>
-          {expanded && (
-            <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--zm-text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>ZERØ MERIDIAN</div>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--zm-text-faint)', marginTop: '1px', letterSpacing: '0.04em' }}>Crypto Intelligence</div>
-            </div>
-          )}
-        </div>
-        {expanded && (
-          <button
-            onClick={onToggle}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '7px', border: '1px solid rgba(0,238,255,0.12)', background: 'rgba(0,238,255,0.05)', color: 'var(--zm-text-faint)', cursor: 'pointer' }}
-            aria-label="Collapse sidebar"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M7 2L3 6l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        )}
+    <aside style={sidebarS} aria-label="Sidebar navigation">
+      <div style={{ height: headerHeight, display: 'flex', alignItems: 'flex-end', flexShrink: 0 }}>
+        <Logo expanded={expanded} />
       </div>
 
-      {/* ── Nav ── */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: expanded ? '6px 8px' : '6px 6px', scrollbarWidth: 'none' }}>
+      <div style={scrollS}>
         {NAV_GROUPS.map(group => (
-          <NavGroupSection key={group.label} group={group} expanded={expanded} currentPath={currentPath} onNavigate={handleNavigate} />
+          <div key={group.id}>
+            <GroupLbl label={group.label} expanded={expanded} />
+            {group.items.map(item => (
+              <NavBtn key={item.id} item={item} active={isActive(item.path)} expanded={expanded} onNav={nav} />
+            ))}
+          </div>
         ))}
       </div>
 
-      {/* ── Footer ── */}
-      <div style={{ padding: expanded ? '10px 14px' : '10px 8px', borderTop: '1px solid rgba(0,238,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: expanded ? 'flex-start' : 'center' }}>
-        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--zm-positive)', boxShadow: '0 0 8px rgba(34,255,170,0.70)', flexShrink: 0, animation: 'pulse-ring 2s ease-out infinite' }} />
-        {expanded && (
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'rgba(34,255,170,0.85)', letterSpacing: '0.06em', fontWeight: 600 }}>BUILD v53 · GREEN</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '9px', color: 'var(--zm-text-faint)', marginTop: '1px', whiteSpace: 'nowrap' }}>ZERØ MERIDIAN TERMINAL</div>
-          </div>
-        )}
+      <div style={bottomS}>
+        {BOTTOM.map(item => (
+          <NavBtn key={item.id} item={item} active={isActive(item.path)} expanded={expanded} onNav={nav} />
+        ))}
+        <button type="button" onClick={onToggle}
+          aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '5px 0', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--zm-text-4)', outline: 'none' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+            style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 200ms ease' }}>
+            <path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
     </aside>
   );
 });
+
 ZMSidebar.displayName = 'ZMSidebar';
 export default ZMSidebar;
