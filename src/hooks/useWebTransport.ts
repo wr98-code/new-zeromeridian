@@ -103,7 +103,11 @@ export function useWebTransport({
       const wt = new WebTransportCtor(url);
       transportRef.current = wt;
 
-      await wt.ready;
+      // push97: timeout guard — kalau QUIC blocked, jangan hang selamanya
+      const readyTimeout = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error('WebTransport ready timeout (8s)')), 8000)
+      );
+      await Promise.race([wt.ready, readyTimeout]);
       if (!mountedRef.current) { wt.close(); return; }
 
       setStatus('connected');

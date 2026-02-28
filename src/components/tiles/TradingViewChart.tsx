@@ -68,7 +68,8 @@ const CARD_STYLE = Object.freeze({
 // ✅ push21: via /api/klines proxy — COEP-safe
 async function fetchCandles(symbol: ChartSymbol, interval: Interval, signal: AbortSignal): Promise<Candle[]> {
   try {
-    const url = '/api/klines?symbol=' + symbol + '&interval=' + interval + '&limit=' + LIMIT;
+    // push97: CF Pages static — tidak ada /api proxy. Langsung ke Binance public REST (CORS supported)
+    const url = 'https://api.binance.com/api/v3/klines?symbol=' + symbol + '&interval=' + interval + '&limit=' + LIMIT;
     const res = await fetch(url, { signal });
     if (!res.ok) return [];
     const raw = await res.json() as number[][];

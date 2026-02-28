@@ -269,6 +269,11 @@ const Dashboard = memo(() => {
   const [isReady, setIsReady] = useState(false);
   const { isMobile, isTablet } = useBreakpoint();
 
+  // push97: live basePrice dari context — bukan hardcoded 67840/3521
+  const { assets: dashAssets } = useCrypto();
+  const btcPrice = useMemo(() => dashAssets.find(a => a.id === 'bitcoin')?.price  ?? 67840, [dashAssets]);
+  const ethPrice = useMemo(() => dashAssets.find(a => a.id === 'ethereum')?.price ?? 3521,  [dashAssets]);
+
   useEffect(() => {
     mountedRef.current = true;
     const controller = new AbortController();
@@ -435,10 +440,10 @@ const Dashboard = memo(() => {
         <SectionLabel label="⬡ Advanced Compute · WASM Orderbook Engine" color="rgba(168,85,247,0.5)" />
         <div style={dualGridStyle}>
           <Suspense fallback={<TileSkeleton height={520} />}>
-            <WasmOrderBook symbol="BTCUSDT" basePrice={67840} />
+            <WasmOrderBook symbol="BTCUSDT" basePrice={btcPrice} />
           </Suspense>
           <Suspense fallback={<TileSkeleton height={520} />}>
-            <WasmOrderBook symbol="ETHUSDT" basePrice={3521} />
+            <WasmOrderBook symbol="ETHUSDT" basePrice={ethPrice} />
           </Suspense>
         </div>
       </motion.div>

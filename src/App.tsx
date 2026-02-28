@@ -17,6 +17,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CryptoProvider } from '@/contexts/CryptoContext';
 import { useCryptoData } from '@/hooks/useCryptoData';
 import Skeleton from '@/components/shared/Skeleton';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import {
   Landmark, ShieldCheck,
   Coins, Gem, DollarSign, Brain, Bot,
