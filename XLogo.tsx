@@ -1,10 +1,10 @@
 /**
- * XLogo.tsx — ZERØ MERIDIAN push128
- * push128: Fix logo nggak blend sama dark background
- *   - Ganti base64 PNG → pakai /logo.png (public asset, sama kayak Portal.tsx)
- *   - Tambah mix-blend-mode: 'screen' supaya background putih logo hilang di dark bg
- *   - Tambah drop-shadow filter supaya logo glowing cyan sesuai design system
- * - React.memo + displayName ✓  rgba() only ✓  Zero className ✓  useMemo ✓
+ * XLogo.tsx — ZERØ MERIDIAN push135
+ * AUDIT FIX: Remove dark/cyan palette
+ *   - drop-shadow rgba(0,238,255,x) → rgba(15,40,180,x) [Bloomberg navy glow]
+ *   - mixBlendMode 'screen' → 'normal' (light theme bg is white, screen mode bukan lagi relevan)
+ *   - glow disesuaikan Bloomberg Professional Light
+ * - React.memo + displayName ✓  rgba() only ✓  Zero className ✓  useMemo ✓  Object.freeze ✓
  */
 
 import React, { useMemo } from 'react';
@@ -30,11 +30,10 @@ const XLogo = React.memo(({ size = 180, glow = true }: XLogoProps) => {
     height: size,
     objectFit: 'contain' as const,
     display: 'block',
-    // mix-blend-mode screen: pixel putih = transparan di atas background gelap
-    // pixel cyan logo tetap telihat, background putih/abu menghilang
-    mixBlendMode: 'screen' as const,
+    // Bloomberg Light: normal blend mode — tidak perlu screen di light bg
+    mixBlendMode: 'normal' as const,
     filter: glow
-      ? 'drop-shadow(0 0 18px rgba(0,238,255,0.55)) drop-shadow(0 0 6px rgba(0,238,255,0.3))'
+      ? 'drop-shadow(0 0 12px rgba(15,40,180,0.25)) drop-shadow(0 0 4px rgba(15,40,180,0.15))'
       : 'none',
     willChange: 'transform' as const,
   }), [size, glow]);

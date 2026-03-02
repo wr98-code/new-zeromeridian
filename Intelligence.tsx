@@ -1,5 +1,6 @@
 /**
- * Intelligence.tsx — ZERØ MERIDIAN push134
+ * Intelligence.tsx — ZERØ MERIDIAN push133
+ * push133: Light professional reskin (Bloomberg mode push132)
  * push130: Zero :any — CCNewsItem + CPNewsItem + CPCurrency interfaces
  * push110: Responsive polish — mobile 320px + desktop 1440px
  * - useBreakpoint ✓  React.memo + displayName ✓
@@ -19,11 +20,11 @@ const C = Object.freeze({
   negative:    "rgba(208,35,75,1)",
   warning:     "rgba(195,125,0,1)",
   textPrimary: "rgba(8,12,40,1)",
-  textFaint:   "rgba(110,120,160,1)",
+  textFaint:   "rgba(165,175,210,1)",
   bgBase:      "rgba(248,249,252,1)",
   cardBg:      "rgba(255,255,255,1)",
-  glassBg:     "rgba(255,255,255,0.97)",
-  glassBorder: "rgba(15,40,100,0.10)",
+  glassBg:     "rgba(15,40,100,0.05)",
+  glassBorder: "rgba(15,40,100,0.08)",
 });
 
 const CATEGORIES = Object.freeze(["All","Bitcoin","Ethereum","DeFi","Regulation","Macro"] as const);
@@ -113,8 +114,8 @@ const NewsCard = memo(({ item, isMobile }: NewsCardProps) => {
   }, [item.publishedAt]);
 
   const cardStyle = useMemo(() => ({
-    background: hovered ? "rgba(255,255,255,0.97)" : C.glassBg,
-    border: `1px solid ${hovered ? "rgba(15,40,180,0.18)" : C.glassBorder}`,
+    background: hovered ? "rgba(15,40,100,0.05)" : C.glassBg,
+    border: `1px solid ${hovered ? "rgba(15,40,180,1)" : C.glassBorder}`,
     borderRadius: 12,
     padding: isMobile ? 12 : 16,
     display: "flex" as const,
@@ -138,7 +139,7 @@ const NewsCard = memo(({ item, isMobile }: NewsCardProps) => {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const }}>
           <span style={{ fontFamily: FONT, fontSize: 9, color: C.accent, opacity: 0.8 }}>{item.source}</span>
           {item.currencies.slice(0, isMobile ? 2 : 3).map(c => (
-            <span key={c} style={{ fontFamily: FONT, fontSize: 9, color: C.textFaint, background: "rgba(255,255,255,0.05)", borderRadius: 4, padding: "1px 5px" }}>{c}</span>
+            <span key={c} style={{ fontFamily: FONT, fontSize: 9, color: C.textFaint, background: "rgba(15,40,100,0.06)", borderRadius: 4, padding: "1px 5px" }}>{c}</span>
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -185,20 +186,47 @@ const Intelligence = memo(() => {
   const mountedRef              = useRef(true);
 
   const fetchData = useCallback(async () => {
+    // push135: Fix sequential fetch (8s delay) → Promise.allSettled parallel
     setLoading(true);
     setError(null);
+    const ctrl = new AbortController();
+    const sig  = ctrl.signal;
+
     try {
-      const res = await fetch("https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true");
+      const [cpResult, ccResult] = await Promise.allSettled([
+        fetch("https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true", { signal: sig }),
+        fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN", { signal: sig }),
+      ]);
       if (!mountedRef.current) return;
 
-      if (!res.ok) {
-        // Fallback: CryptoCompare
-        const fallback = await fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN");
+      // Try CryptoPanic first (primary)
+      if (cpResult.status === "fulfilled" && cpResult.value.ok) {
+        const json = await cpResult.value.json() as CPResponse;
         if (!mountedRef.current) return;
-        if (!fallback.ok) throw new Error("All news sources unavailable");
-        const json = await fallback.json() as CCResponse;
-        if (!mountedRef.current) return;
+        const items: NewsItem[] = (json.results ?? []).slice(0, 30).map((n): NewsItem => {
+          const pos = n.votes?.positive ?? 0;
+          const neg = n.votes?.negative ?? 0;
+          return {
+            id:          String(n.id ?? ""),
+            title:       n.title ?? "",
+            source:      n.source?.title ?? "Unknown",
+            url:         n.url ?? "",
+            publishedAt: new Date(n.published_at ?? "").getTime(),
+            sentiment:   neg > pos ? "negative" : pos > 5 ? "positive" : "neutral",
+            votes:       { positive: pos, negative: neg },
+            currencies:  (n.currencies ?? []).map(c => c.code ?? "").filter(Boolean).slice(0, 3),
+          };
+        });
+        if (items.length > 0) {
+          setData({ news: items, lastUpdated: Date.now() });
+          return;
+        }
+      }
 
+      // Fallback: CryptoCompare (already fetched in parallel — no extra delay)
+      if (ccResult.status === "fulfilled" && ccResult.value.ok) {
+        const json = await ccResult.value.json() as CCResponse;
+        if (!mountedRef.current) return;
         const items: NewsItem[] = (json.Data ?? []).slice(0, 30).map((n): NewsItem => ({
           id:          String(n.id ?? ""),
           title:       n.title ?? "",
@@ -209,32 +237,18 @@ const Intelligence = memo(() => {
           votes:       { positive: 0, negative: 0 },
           currencies:  (n.categories ?? "").split("|").filter(Boolean),
         }));
-        setData({ news: items, lastUpdated: Date.now() });
-        return;
+        if (items.length > 0) {
+          setData({ news: items, lastUpdated: Date.now() });
+          return;
+        }
       }
 
-      // Primary: CryptoPanic
-      const json = await res.json() as CPResponse;
+      // Both failed
       if (!mountedRef.current) return;
-
-      const items: NewsItem[] = (json.results ?? []).slice(0, 30).map((n): NewsItem => {
-        const pos = n.votes?.positive ?? 0;
-        const neg = n.votes?.negative ?? 0;
-        return {
-          id:          String(n.id ?? ""),
-          title:       n.title ?? "",
-          source:      n.source?.title ?? "Unknown",
-          url:         n.url ?? "",
-          publishedAt: new Date(n.published_at ?? "").getTime(),
-          sentiment:   neg > pos ? "negative" : pos > 5 ? "positive" : "neutral",
-          votes:       { positive: pos, negative: neg },
-          currencies:  (n.currencies ?? []).map(c => c.code ?? "").filter(Boolean).slice(0, 3),
-        };
-      });
-      setData({ news: items, lastUpdated: Date.now() });
-
+      setError("All news sources unavailable");
     } catch (e) {
       if (!mountedRef.current) return;
+      if ((e as Error).name === "AbortError") return;
       setError(`Failed to load intelligence data: ${e instanceof Error ? e.message : "Unknown error"}`);
     } finally {
       if (mountedRef.current) setLoading(false);
@@ -315,7 +329,7 @@ const Intelligence = memo(() => {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "64px 24px" }}>
           <span style={{ fontFamily: FONT, fontSize: 12, color: C.negative, textAlign: "center" }}>{error}</span>
           <button
-            style={{ fontFamily: FONT, fontSize: 10, fontWeight: 600, color: C.textPrimary, background: "rgba(15,40,100,0.10)", border: `1px solid ${C.glassBorder}`, borderRadius: 6, padding: "6px 14px", cursor: "pointer" }}
+            style={{ fontFamily: FONT, fontSize: 10, fontWeight: 600, color: C.textPrimary, background: "rgba(15,40,100,0.08)", border: `1px solid ${C.glassBorder}`, borderRadius: 6, padding: "6px 14px", cursor: "pointer" }}
             onClick={fetchData}
           >
             Retry

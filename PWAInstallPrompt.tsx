@@ -1,16 +1,15 @@
 /**
- * PWAInstallPrompt.tsx — ZERØ MERIDIAN 2026 push78
- * push78: Refactored to consume PWAInstallContext (shared state with Topbar).
- *   - Banner & iOS sheet still here (visual layer)
- *   - State now lives in PWAInstallContext (no duplicate event listeners)
- *   - Listens to 'zm-show-ios-install' custom event from Topbar install button
- * push74: All breakpoints, adaptive position
- * push27: Initial implementation
- * - React.memo + displayName ✓
- * - Zero className ✓  rgba() only ✓
- * - Zero template literals in JSX ✓
- * - mountedRef + useCallback + useMemo ✓
- * - Touch targets 48px ✓
+ * PWAInstallPrompt.tsx — ZERØ MERIDIAN push135
+ * AUDIT FIX: Replace dark/neon palette with Bloomberg Light
+ *   - rgba(0,238,255,x)  → rgba(15,40,180,x)   [cyan → Bloomberg navy]
+ *   - rgba(7,9,18,x)     → rgba(255,255,255,x)  [dark panel → white]
+ *   - rgba(32,42,68,x)   → rgba(15,40,100,0.12) [dark border → light border]
+ *   - rgba(80,80,100,x)  → rgba(110,120,160,x)  [dark muted → Bloomberg muted]
+ *   - rgba(240,240,248,x)→ rgba(8,12,40,x)      [light text on dark → dark text on light]
+ *   - rgba(200,200,214,x)→ rgba(55,65,110,x)    [step text]
+ * push78: Refactored to consume PWAInstallContext
+ * - React.memo + displayName ✓  rgba() only ✓  Zero className ✓
+ * - JetBrains Mono ✓  mountedRef + useCallback + useMemo ✓  Object.freeze ✓
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,15 +17,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { usePWAInstall } from '@/contexts/PWAInstallContext';
 
-// ─── iOS step data ────────────────────────────────────────────────────────────
+const FONT = "'JetBrains Mono', monospace";
+
+const C = Object.freeze({
+  accent:       'rgba(15,40,180,1)',
+  positive:     'rgba(0,155,95,1)',
+  textPrimary:  'rgba(8,12,40,1)',
+  textFaint:    'rgba(110,120,160,1)',
+  cardBg:       'rgba(255,255,255,1)',
+  accentBg:     'rgba(15,40,180,0.07)',
+  accentBorder: 'rgba(15,40,180,0.22)',
+  glassBorder:  'rgba(15,40,100,0.10)',
+  panelBg:      'rgba(248,249,252,1)',
+  panelBorder:  'rgba(15,40,100,0.12)',
+});
 
 const IOS_STEPS = Object.freeze([
   { num: '1', text: 'Tap the Share button at the bottom of Safari' },
   { num: '2', text: 'Scroll down and tap "Add to Home Screen"' },
   { num: '3', text: 'Tap "Add" in the top-right corner to confirm' },
 ]);
-
-// ─── iOS instruction sheet ────────────────────────────────────────────────────
 
 const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
   <motion.div
@@ -37,7 +47,7 @@ const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
     style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.7)',
+      background: 'rgba(8,12,40,0.5)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
     }}
@@ -53,65 +63,57 @@ const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       style={{
         width: '100%', maxWidth: 480,
-        background: 'rgba(7,9,18,0.99)',
-        border: '1px solid rgba(0,238,255,0.2)',
+        background: C.cardBg,
+        border: '1px solid ' + C.accentBorder,
         borderBottom: 'none',
         borderRadius: '20px 20px 0 0',
         padding: '24px 24px 48px',
-        boxShadow: '0 -24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,238,255,0.06)',
+        boxShadow: '0 -24px 80px rgba(15,40,100,0.12)',
       }}
       onClick={e => e.stopPropagation()}
     >
       {/* Handle */}
       <div style={{
         width: 40, height: 4, borderRadius: 2,
-        background: 'rgba(80,80,100,1)',
+        background: C.glassBorder,
         margin: '0 auto 24px',
       }} />
 
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        {/* Crystal Ø icon */}
         <div style={{
           width: 56, height: 56, borderRadius: 16,
-          background: 'rgba(0,238,255,0.06)',
-          border: '1px solid rgba(0,238,255,0.18)',
+          background: C.accentBg,
+          border: '1px solid ' + C.accentBorder,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 14px',
-          boxShadow: '0 0 24px rgba(0,238,255,0.12)',
+          boxShadow: '0 0 16px rgba(15,40,180,0.08)',
         }}>
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            {/* Shuriken spikes */}
-            <polygon points="16,2 14,14 16,12 18,14" fill="rgba(0,238,255,0.18)" />
-            <polygon points="30,16 18,14 20,16 18,18" fill="rgba(0,238,255,0.14)" />
-            <polygon points="16,30 18,18 16,20 14,18" fill="rgba(0,238,255,0.12)" />
-            <polygon points="2,16 14,18 12,16 14,14" fill="rgba(0,238,255,0.16)" />
-            {/* Ø circle */}
-            <circle cx="16" cy="16" r="7" stroke="rgba(0,238,255,0.3)" strokeWidth="3" fill="none" filter="url(#g)" />
-            <circle cx="16" cy="16" r="7" stroke="rgba(0,238,255,1)" strokeWidth="1.8" fill="none" />
-            <circle cx="16" cy="16" r="7" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" fill="none"
-              strokeDasharray="8 30" strokeDashoffset="4" />
-            {/* Slash */}
+            <polygon points="16,2 14,14 16,12 18,14" fill="rgba(15,40,180,0.18)" />
+            <polygon points="30,16 18,14 20,16 18,18" fill="rgba(15,40,180,0.14)" />
+            <polygon points="16,30 18,18 16,20 14,18" fill="rgba(15,40,180,0.12)" />
+            <polygon points="2,16 14,18 12,16 14,14" fill="rgba(15,40,180,0.16)" />
+            <circle cx="16" cy="16" r="7" stroke="rgba(15,40,180,0.25)" strokeWidth="3" fill="none" />
+            <circle cx="16" cy="16" r="7" stroke="rgba(15,40,180,1)" strokeWidth="1.8" fill="none" />
             <line x1="21" y1="10" x2="11" y2="22"
-              stroke="rgba(0,238,255,0.4)" strokeWidth="3.5" strokeLinecap="round" />
+              stroke="rgba(15,40,180,0.35)" strokeWidth="3.5" strokeLinecap="round" />
             <line x1="21" y1="10" x2="11" y2="22"
-              stroke="rgba(0,238,255,1)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1="20.5" y1="10.5" x2="15" y2="17.5"
-              stroke="rgba(255,255,255,0.7)" strokeWidth="0.8" strokeLinecap="round" />
+              stroke="rgba(15,40,180,1)" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </div>
         <div style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: FONT,
           fontSize: 15, fontWeight: 700,
-          color: 'rgba(240,240,248,1)',
+          color: C.textPrimary,
           letterSpacing: '0.06em',
           marginBottom: 6,
         }}>
           Install ZERØ MERIDIAN
         </div>
         <div style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11, color: 'rgba(80,80,100,1)',
+          fontFamily: FONT,
+          fontSize: 11, color: C.textFaint,
           letterSpacing: '0.08em',
         }}>
           Add to Home Screen — no App Store required
@@ -124,23 +126,23 @@ const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
           <div key={step.num} style={{
             display: 'flex', alignItems: 'center', gap: 14,
             padding: '12px 16px', borderRadius: 12,
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(32,42,68,1)',
+            background: C.accentBg,
+            border: '1px solid ' + C.glassBorder,
           }}>
             <div style={{
               width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-              background: 'rgba(0,238,255,0.08)',
-              border: '1px solid rgba(0,238,255,0.22)',
+              background: C.accentBg,
+              border: '1px solid ' + C.accentBorder,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: FONT,
               fontSize: 12, fontWeight: 700,
-              color: 'rgba(0,238,255,1)',
+              color: C.accent,
             }}>
               {step.num}
             </div>
             <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12, color: 'rgba(200,200,214,1)',
+              fontFamily: FONT,
+              fontSize: 12, color: 'rgba(55,65,110,1)',
               lineHeight: 1.5,
             }}>
               {step.text}
@@ -155,12 +157,12 @@ const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
         aria-label="Close install instructions"
         style={{
           width: '100%', minHeight: 48,
-          background: 'rgba(0,238,255,0.05)',
-          border: '1px solid rgba(0,238,255,0.15)',
+          background: C.accentBg,
+          border: '1px solid ' + C.accentBorder,
           borderRadius: 12, cursor: 'pointer',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: FONT,
           fontSize: 12, fontWeight: 700,
-          color: 'rgba(0,238,255,0.9)',
+          color: C.accent,
           letterSpacing: '0.12em',
         }}
       >
@@ -170,8 +172,6 @@ const IOSSheet = memo(({ onClose }: { onClose: () => void }) => (
   </motion.div>
 ));
 IOSSheet.displayName = 'IOSSheet';
-
-// ─── Main Banner ──────────────────────────────────────────────────────────────
 
 const PWAInstallPrompt = memo(() => {
   const mountedRef = useRef(true);
@@ -190,7 +190,6 @@ const PWAInstallPrompt = memo(() => {
 
   useEffect(() => {
     mountedRef.current = true;
-    // Listen for Topbar-triggered iOS install
     const handleShowIOS = () => { if (mountedRef.current) setShowIOSSheet(true); };
     window.addEventListener('zm-show-ios-install', handleShowIOS);
     return () => {
@@ -200,52 +199,35 @@ const PWAInstallPrompt = memo(() => {
   }, []);
 
   const handleInstall = useCallback(async () => {
-    if (isIOS) {
-      setShowIOSSheet(true);
-      return;
-    }
+    if (isIOS) { setShowIOSSheet(true); return; }
     await triggerInstall();
   }, [isIOS, triggerInstall]);
 
-  const handleDismiss = useCallback(() => {
-    dismissInstall();
-  }, [dismissInstall]);
-
-  const handleCloseIOS = useCallback(() => {
-    setShowIOSSheet(false);
-  }, []);
+  const handleDismiss   = useCallback(() => { dismissInstall(); }, [dismissInstall]);
+  const handleCloseIOS  = useCallback(() => { setShowIOSSheet(false); }, []);
 
   const bannerStyle = useMemo(() => {
+    const base = {
+      background:          C.cardBg,
+      border:              '1px solid ' + C.accentBorder,
+      borderRadius:        14,
+      display:             'flex', alignItems: 'center' as const, gap: 14,
+      boxShadow:           '0 8px 32px rgba(15,40,100,0.12)',
+      backdropFilter:      'blur(12px)',
+      WebkitBackdropFilter:'blur(12px)',
+    };
     if (isMobile) return Object.freeze({
-      position: 'fixed' as const,
-      bottom: 76, left: 12, right: 12,
-      zIndex: 500,
-      background: 'rgba(7,9,18,0.97)',
-      border: '1px solid rgba(0,238,255,0.22)',
-      borderRadius: 14,
-      padding: '12px 14px',
-      display: 'flex', alignItems: 'center', gap: 12,
-      boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,238,255,0.06)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
+      ...base, position: 'fixed' as const,
+      bottom: 76, left: 12, right: 12, zIndex: 500,
+      padding: '12px 14px', gap: 12,
     });
     return Object.freeze({
-      position: 'fixed' as const,
-      bottom: 24, right: 24,
-      zIndex: 500,
-      background: 'rgba(7,9,18,0.98)',
-      border: '1px solid rgba(0,238,255,0.22)',
-      borderRadius: 14,
-      padding: '14px 18px',
-      display: 'flex', alignItems: 'center', gap: 14,
-      maxWidth: 360,
-      boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,238,255,0.06)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
+      ...base, position: 'fixed' as const,
+      bottom: 24, right: 24, zIndex: 500,
+      padding: '14px 18px', maxWidth: 360,
     });
   }, [isMobile]);
 
-  // Don't render banner if installed, dismissed, or not installable
   const showBanner = canInstall && !isInstalled && !isDismissed && !isStandalone;
 
   return (
@@ -265,32 +247,32 @@ const PWAInstallPrompt = memo(() => {
             {/* Ø Icon */}
             <div style={{
               width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-              background: 'rgba(0,238,255,0.07)',
-              border: '1px solid rgba(0,238,255,0.2)',
+              background: C.accentBg,
+              border: '1px solid ' + C.accentBorder,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 16px rgba(0,238,255,0.1)',
+              boxShadow: '0 0 12px rgba(15,40,180,0.08)',
             }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="8" stroke="rgba(0,238,255,0.25)" strokeWidth="3.5" fill="none" />
-                <circle cx="12" cy="12" r="8" stroke="rgba(0,238,255,1)" strokeWidth="1.8" fill="none" />
-                <line x1="17" y1="6" x2="7" y2="18" stroke="rgba(0,238,255,0.35)" strokeWidth="3" strokeLinecap="round" />
-                <line x1="17" y1="6" x2="7" y2="18" stroke="rgba(0,238,255,1)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="8" stroke="rgba(15,40,180,0.22)" strokeWidth="3.5" fill="none" />
+                <circle cx="12" cy="12" r="8" stroke="rgba(15,40,180,1)" strokeWidth="1.8" fill="none" />
+                <line x1="17" y1="6" x2="7" y2="18" stroke="rgba(15,40,180,0.3)" strokeWidth="3" strokeLinecap="round" />
+                <line x1="17" y1="6" x2="7" y2="18" stroke="rgba(15,40,180,1)" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </div>
 
             {/* Text */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: FONT,
                 fontSize: 13, fontWeight: 700,
-                color: 'rgba(240,240,248,1)',
+                color: C.textPrimary,
                 marginBottom: 3, letterSpacing: '0.04em',
               }}>
                 Install ZERØ MERIDIAN
               </div>
               <div style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10, color: 'rgba(80,80,100,1)',
+                fontFamily: FONT,
+                fontSize: 10, color: C.textFaint,
                 letterSpacing: '0.06em',
               }}>
                 {isIOS ? 'Add to Home Screen · no App Store needed' : 'Full-screen · offline · instant access'}
@@ -306,10 +288,10 @@ const PWAInstallPrompt = memo(() => {
                 style={{
                   minHeight: 36, minWidth: 36, padding: '0 10px',
                   background: 'transparent',
-                  border: '1px solid rgba(32,42,68,1)',
+                  border: '1px solid ' + C.glassBorder,
                   borderRadius: 8, cursor: 'pointer',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 12, color: 'rgba(80,80,100,1)',
+                  fontFamily: FONT,
+                  fontSize: 12, color: C.textFaint,
                 }}
               >
                 ✕
@@ -320,14 +302,13 @@ const PWAInstallPrompt = memo(() => {
                 aria-label={isIOS ? 'Show iOS install instructions' : 'Install app'}
                 style={{
                   minHeight: 36, padding: '0 16px',
-                  background: 'rgba(0,238,255,0.09)',
-                  border: '1px solid rgba(0,238,255,0.28)',
+                  background: C.accentBg,
+                  border: '1px solid ' + C.accentBorder,
                   borderRadius: 8, cursor: 'pointer',
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: FONT,
                   fontSize: 10, fontWeight: 700,
-                  color: 'rgba(0,238,255,1)',
+                  color: C.accent,
                   letterSpacing: '0.1em',
-                  boxShadow: '0 0 12px rgba(0,238,255,0.08)',
                 }}
               >
                 {isIOS ? 'HOW TO' : 'INSTALL'}
@@ -336,7 +317,6 @@ const PWAInstallPrompt = memo(() => {
           </motion.div>
         )}
 
-        {/* iOS instruction sheet */}
         {showIOSSheet && (
           <IOSSheet key="ios-sheet" onClose={handleCloseIOS} />
         )}
