@@ -812,7 +812,7 @@ const Converter = memo(() => {
     return (
       <div style={pageStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: '13px', color: 'rgba(255,68,136,1)' }}>⚠ Gagal memuat data aset. Periksa koneksi internet.</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: '13px', color: 'rgba(208,35,75,1)' }}>⚠ Gagal memuat data aset. Periksa koneksi internet.</div>
         </div>
       </div>
     );

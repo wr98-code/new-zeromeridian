@@ -186,20 +186,47 @@ const Intelligence = memo(() => {
   const mountedRef              = useRef(true);
 
   const fetchData = useCallback(async () => {
+    // push135: Fix sequential fetch (8s delay) → Promise.allSettled parallel
     setLoading(true);
     setError(null);
+    const ctrl = new AbortController();
+    const sig  = ctrl.signal;
+
     try {
-      const res = await fetch("https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true");
+      const [cpResult, ccResult] = await Promise.allSettled([
+        fetch("https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true", { signal: sig }),
+        fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN", { signal: sig }),
+      ]);
       if (!mountedRef.current) return;
 
-      if (!res.ok) {
-        // Fallback: CryptoCompare
-        const fallback = await fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN");
+      // Try CryptoPanic first (primary)
+      if (cpResult.status === "fulfilled" && cpResult.value.ok) {
+        const json = await cpResult.value.json() as CPResponse;
         if (!mountedRef.current) return;
-        if (!fallback.ok) throw new Error("All news sources unavailable");
-        const json = await fallback.json() as CCResponse;
-        if (!mountedRef.current) return;
+        const items: NewsItem[] = (json.results ?? []).slice(0, 30).map((n): NewsItem => {
+          const pos = n.votes?.positive ?? 0;
+          const neg = n.votes?.negative ?? 0;
+          return {
+            id:          String(n.id ?? ""),
+            title:       n.title ?? "",
+            source:      n.source?.title ?? "Unknown",
+            url:         n.url ?? "",
+            publishedAt: new Date(n.published_at ?? "").getTime(),
+            sentiment:   neg > pos ? "negative" : pos > 5 ? "positive" : "neutral",
+            votes:       { positive: pos, negative: neg },
+            currencies:  (n.currencies ?? []).map(c => c.code ?? "").filter(Boolean).slice(0, 3),
+          };
+        });
+        if (items.length > 0) {
+          setData({ news: items, lastUpdated: Date.now() });
+          return;
+        }
+      }
 
+      // Fallback: CryptoCompare (already fetched in parallel — no extra delay)
+      if (ccResult.status === "fulfilled" && ccResult.value.ok) {
+        const json = await ccResult.value.json() as CCResponse;
+        if (!mountedRef.current) return;
         const items: NewsItem[] = (json.Data ?? []).slice(0, 30).map((n): NewsItem => ({
           id:          String(n.id ?? ""),
           title:       n.title ?? "",
@@ -210,32 +237,18 @@ const Intelligence = memo(() => {
           votes:       { positive: 0, negative: 0 },
           currencies:  (n.categories ?? "").split("|").filter(Boolean),
         }));
-        setData({ news: items, lastUpdated: Date.now() });
-        return;
+        if (items.length > 0) {
+          setData({ news: items, lastUpdated: Date.now() });
+          return;
+        }
       }
 
-      // Primary: CryptoPanic
-      const json = await res.json() as CPResponse;
+      // Both failed
       if (!mountedRef.current) return;
-
-      const items: NewsItem[] = (json.results ?? []).slice(0, 30).map((n): NewsItem => {
-        const pos = n.votes?.positive ?? 0;
-        const neg = n.votes?.negative ?? 0;
-        return {
-          id:          String(n.id ?? ""),
-          title:       n.title ?? "",
-          source:      n.source?.title ?? "Unknown",
-          url:         n.url ?? "",
-          publishedAt: new Date(n.published_at ?? "").getTime(),
-          sentiment:   neg > pos ? "negative" : pos > 5 ? "positive" : "neutral",
-          votes:       { positive: pos, negative: neg },
-          currencies:  (n.currencies ?? []).map(c => c.code ?? "").filter(Boolean).slice(0, 3),
-        };
-      });
-      setData({ news: items, lastUpdated: Date.now() });
-
+      setError("All news sources unavailable");
     } catch (e) {
       if (!mountedRef.current) return;
+      if ((e as Error).name === "AbortError") return;
       setError(`Failed to load intelligence data: ${e instanceof Error ? e.message : "Unknown error"}`);
     } finally {
       if (mountedRef.current) setLoading(false);
